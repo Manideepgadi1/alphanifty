@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from './Header';
 import { User, Basket, CartItem } from '../App';
 import { mockBaskets } from '../data/mockData';
+import { basketAPI, BasketAPIResponse } from '../services/api';
 import { ArrowLeft, TrendingUp, AlertCircle, Clock, Target, PieChart, RefreshCw, Star, Activity, BarChart3, Layers, Package, Building2, TrendingDown, Download, ShoppingCart, Check } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -18,6 +19,11 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
   // Fallback to first basket if none selected
   const currentBasket = basket || mockBaskets[0];
 
+  // State for API data
+  const [apiData, setApiData] = useState<BasketAPIResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   // State for comparison timeline
   const [selectedTimeline, setSelectedTimeline] = useState<3 | 5 | 10>(3);
   
@@ -29,6 +35,44 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
   // State for comparison amount in Returns Comparison graph
   const [comparisonAmount, setComparisonAmount] = useState(investmentAmount);
   const [comparisonAmountError, setComparisonAmountError] = useState('');
+
+  // Fetch backend data for Conservative Balanced or Aggressive Hybrid baskets
+  useEffect(() => {
+    const fetchBasketData = async () => {
+      if (currentBasket.id === 'b10') {
+        // Conservative Balanced Basket
+        setLoading(true);
+        setError(null);
+        try {
+          const data = await basketAPI.getConservativeBalancedBasket(selectedTimeline);
+          setApiData(data);
+        } catch (err) {
+          console.error('Failed to fetch basket data:', err);
+          setError('Failed to load basket data from backend');
+        } finally {
+          setLoading(false);
+        }
+      } else if (currentBasket.id === 'b9') {
+        // Aggressive Hybrid Basket
+        setLoading(true);
+        setError(null);
+        try {
+          const data = await basketAPI.getAggressiveHybridBasket(selectedTimeline);
+          setApiData(data);
+        } catch (err) {
+          console.error('Failed to fetch basket data:', err);
+          setError('Failed to load basket data from backend');
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Reset API data for other baskets
+        setApiData(null);
+      }
+    };
+
+    fetchBasketData();
+  }, [currentBasket.id, selectedTimeline]);
 
   const handleInvestNow = () => {
     if (!user) {
@@ -242,8 +286,15 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
                     border: currentBasket.color === '#FFFFFF' ? '2px solid #E5E7EB' : 'none'
                   }}
                 />
-                <div>
-                  <h1 className="text-[#1B263B] mb-2">{currentBasket.name}</h1>
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <h1 className="text-[#1B263B]">{currentBasket.name}</h1>
+                    {apiData && (
+                      <span className="bg-gradient-to-r from-[#3BAF4A] to-[#2E89C4] text-white text-xs px-3 py-1 rounded-full">
+                        Live Data
+                      </span>
+                    )}
+                  </div>
                   <p className="text-gray-600">{currentBasket.description}</p>
                 </div>
               </div>
@@ -289,15 +340,24 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
               <div className="flex items-center space-x-2 mb-4">
                 <TrendingUp className="w-5 h-5 text-[#2E89C4]" />
                 <h3 className="text-[#1B263B]">Performance (CAGR)</h3>
+                {loading && <span className="text-xs text-gray-400">(Loading...)</span>}
               </div>
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-white rounded-lg p-4">
                   <p className="text-sm text-gray-500 mb-1">3 Years</p>
-                  <p className="text-2xl text-[#3BAF4A]">{currentBasket.cagr3Y}%</p>
+                  <p className="text-2xl text-[#3BAF4A]">
+                    {apiData?.metrics?.cagr3Y !== undefined 
+                      ? `${apiData.metrics.cagr3Y.toFixed(2)}%` 
+                      : `${currentBasket.cagr3Y}%`}
+                  </p>
                 </div>
                 <div className="bg-white rounded-lg p-4">
                   <p className="text-sm text-gray-500 mb-1">5 Years</p>
-                  <p className="text-2xl text-[#3BAF4A]">{currentBasket.cagr5Y}%</p>
+                  <p className="text-2xl text-[#3BAF4A]">
+                    {apiData?.metrics?.cagr5Y !== undefined 
+                      ? `${apiData.metrics.cagr5Y.toFixed(2)}%` 
+                      : `${currentBasket.cagr5Y}%`}
+                  </p>
                 </div>
               </div>
 
@@ -307,14 +367,22 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
                     <BarChart3 className="w-4 h-4 text-gray-400" />
                     <p className="text-sm text-gray-500">Sharpe Ratio</p>
                   </div>
-                  <p className="text-xl text-[#1B263B]">{currentBasket.sharpeRatio}</p>
+                  <p className="text-xl text-[#1B263B]">
+                    {apiData?.metrics?.sharpeRatio !== undefined 
+                      ? apiData.metrics.sharpeRatio.toFixed(2) 
+                      : currentBasket.sharpeRatio}
+                  </p>
                 </div>
                 <div className="bg-white rounded-lg p-4">
                   <div className="flex items-center space-x-2 mb-1">
                     <Activity className="w-4 h-4 text-gray-400" />
                     <p className="text-sm text-gray-500">Std Dev (%)</p>
                   </div>
-                  <p className="text-xl text-[#1B263B]">{currentBasket.riskPercentage}%</p>
+                  <p className="text-xl text-[#1B263B]">
+                    {apiData?.metrics?.riskPercentage !== undefined 
+                      ? `${apiData.metrics.riskPercentage.toFixed(2)}%` 
+                      : `${currentBasket.riskPercentage}%`}
+                  </p>
                 </div>
               </div>
 
@@ -745,53 +813,68 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
 
           {/* Chart */}
           <div className="mb-8">
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis 
-                  dataKey="year" 
-                  stroke="#6B7280"
-                  style={{ fontSize: '12px' }}
-                />
-                <YAxis 
-                  stroke="#6B7280"
-                  style={{ fontSize: '12px' }}
-                  tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#fff', 
-                    border: '1px solid #E5E7EB',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-                  }}
-                  formatter={(value: any) => [`₹${value.toLocaleString()}`, '']}
-                  labelStyle={{ color: '#1B263B', fontWeight: 'bold' }}
-                />
-                <Legend 
-                  wrapperStyle={{ paddingTop: '20px' }}
-                  iconType="line"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="basket" 
-                  stroke="#3BAF4A" 
-                  strokeWidth={3}
-                  name={currentBasket.name}
-                  dot={{ fill: '#3BAF4A', r: 5 }}
-                  activeDot={{ r: 7 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="nifty" 
-                  stroke="#2E89C4" 
-                  strokeWidth={3}
-                  name="Nifty Index"
-                  dot={{ fill: '#2E89C4', r: 5 }}
-                  activeDot={{ r: 7 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {loading ? (
+              <div className="flex justify-center items-center h-[400px]">
+                <div className="text-[#2E89C4]">Loading chart data...</div>
+              </div>
+            ) : error ? (
+              <div className="flex justify-center items-center h-[400px] text-red-500">
+                {error}
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={apiData?.graphData ? 
+                  apiData.graphData.labels.map((label: string, index: number) => ({
+                    year: label,
+                    basket: apiData.graphData.basketData[index],
+                    nifty: apiData.graphData.niftyData[index]
+                  })) : chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis 
+                    dataKey="year" 
+                    stroke="#6B7280"
+                    style={{ fontSize: '12px' }}
+                  />
+                  <YAxis 
+                    stroke="#6B7280"
+                    style={{ fontSize: '12px' }}
+                    tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #E5E7EB',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                    }}
+                    formatter={(value: any) => [`₹${value.toLocaleString()}`, '']}
+                    labelStyle={{ color: '#1B263B', fontWeight: 'bold' }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '20px' }}
+                    iconType="line"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="basket" 
+                    stroke="#3BAF4A" 
+                    strokeWidth={3}
+                    name={currentBasket.name}
+                    dot={{ fill: '#3BAF4A', r: 5 }}
+                    activeDot={{ r: 7 }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="nifty" 
+                    stroke="#2E89C4" 
+                    strokeWidth={3}
+                    name="Nifty 50"
+                    dot={{ fill: '#2E89C4', r: 5 }}
+                    activeDot={{ r: 7 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
           {/* Comparison Table */}
