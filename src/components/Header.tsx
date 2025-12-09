@@ -1,5 +1,5 @@
 import { User as UserType } from '../App';
-import { User, ShoppingCart, Menu, X, Shield } from 'lucide-react';
+import { User, ShoppingCart, Menu, X, Shield, ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import alphaniftyLogo from 'figma:asset/218bb0d7dc695a17e372bb77ecebe304227215d4.png';
 
@@ -17,6 +17,16 @@ export function Header({ navigateTo, user, showCart = false, cartCount = 0 }: He
     <header className="bg-[#2E89C4] text-white sticky top-0 z-50 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
+          {/* Back to Dashboard Button */}
+          <a 
+            href="/"
+            className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors"
+            title="Back to Dashboard"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="hidden sm:inline">Dashboard</span>
+          </a>
+
           {/* Logo */}
           <button 
             onClick={() => navigateTo('home')}
