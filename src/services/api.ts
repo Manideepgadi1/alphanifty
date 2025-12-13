@@ -7,8 +7,10 @@ export interface BasketMetrics {
   cagr3Y: number;
   cagr5Y: number;
   risk: number;
-  sharpeRatio: number;
-  expenseRatio: number;
+  sharpe?: number;
+  sharpeRatio?: number;
+  expenseRatio?: number;
+  riskPercentage?: number;
 }
 
 export interface PeriodReturns {
@@ -26,6 +28,11 @@ export interface GraphData {
   niftyData: number[];
 }
 
+export interface DualGraphData {
+  absoluteReturns: GraphData;
+  rollingReturns: GraphData;
+}
+
 export interface BasketAPIResponse {
   id: string;
   name: string;
@@ -38,8 +45,8 @@ export interface BasketAPIResponse {
   goals: string[];
   experienceLevel: string;
   metrics: BasketMetrics;
-  periodReturns: PeriodReturns;
-  graphData: GraphData;
+  periodReturns?: PeriodReturns;
+  graphData: GraphData | DualGraphData;
   funds: any[];
   rationale: string;
   philosophy: string;
@@ -76,6 +83,70 @@ export const basketAPI = {
       return await response.json();
     } catch (error) {
       console.error('Error fetching Aggressive Hybrid Basket:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch White Basket data from backend
+   */
+  async getWhiteBasket(years: number = 5): Promise<BasketAPIResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/baskets/white-basket?years=${years}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching White Basket:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch Every Common India Basket data from backend
+   */
+  async getEveryCommonIndiaBasket(years: number = 5): Promise<BasketAPIResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/baskets/every-common-india?years=${years}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching Every Common India Basket:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch Raising India Basket data from backend
+   */
+  async getRaisingIndiaBasket(years: number = 5): Promise<BasketAPIResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/baskets/raising-india?years=${years}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching Raising India Basket:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch Great India Basket data from backend (with dual graph support)
+   */
+  async getGreatIndiaBasket(years: number = 5): Promise<BasketAPIResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/baskets/great-india?years=${years}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching Great India Basket:', error);
       throw error;
     }
   },

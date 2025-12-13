@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Financial Calculators</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+    /* ---------- GLOBAL UI ---------- */
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: "Inter", Arial, sans-serif;
+        background: linear-gradient(135deg, #dfe9f3, #ffffff);
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    a { text-decoration: none; }
+
+    /* ---------- MAIN CONTAINER ---------- */
+    .box {
+        width: 95%;
+        max-width: 480px;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        padding: 40px 35px;
+        border-radius: 20px;
+        text-align: center;
+        box-shadow: 0px 6px 25px rgba(0, 0, 0, 0.12);
+        animation: fadeIn 0.7s ease-out;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+
+    /* Entrance Animation */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(15px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---------- HEADER ---------- */
+    h2 {
+        font-size: 28px;
+        color: #0056ff;
+        margin-bottom: 25px;
+        letter-spacing: 0.8px;
+        font-weight: 700;
+    }
+
+    /* ---------- BUTTONS ---------- */
+    .calc-btn {
+        width: 100%;
+        padding: 16px;
+        font-size: 18px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        margin-top: 18px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        transition: 0.25s ease;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .calc-btn:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 5px 18px rgba(0, 0, 0, 0.18);
+    }
+
+    .sip  { background: #0056ff; color: #fff; }
+    .sip:hover { background: #0044cc; }
+
+    .lump { background: #28a745; color: #fff; }
+    .lump:hover { background: #1f8236; }
+
+    .goal { background: #ff9800; color: #fff; }
+    .goal:hover { background: #e28400; }
+
+    /* ---------- FOOTER TEXT ---------- */
+    p {
+        color: #444;
+        margin-top: 25px;
+        font-size: 15px;
+        opacity: 0.8;
+    }
+
+</style>
+</head>
+
+<body>
+
+<div class="box">
+
+    <h2>Financial Calculators</h2>
+
+    <a href="sip-calculator.html">
+        <button class="calc-btn sip">📈 SIP Calculator</button>
+    </a>
+
+    <a href="lumpsum-calculator.html">
+        <button class="calc-btn lump">💰 Lumpsum Calculator</button>
+    </a>
+
+    <a href="goal-calculator.html">
+        <button class="calc-btn goal">🎯 Goal-Based SIP & Lumpsum Calculator</button>
+    </a>
+
+    <p>Select a calculator to begin.</p>
+
+</div>
+
+</body>
+</html>

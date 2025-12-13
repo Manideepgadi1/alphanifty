@@ -3,8 +3,14 @@ import { Header } from './Header';
 import { User, Basket, CartItem } from '../App';
 import { mockBaskets } from '../data/mockData';
 import { basketAPI, BasketAPIResponse } from '../services/api';
-import { ArrowLeft, TrendingUp, AlertCircle, Clock, Target, PieChart, RefreshCw, Star, Activity, BarChart3, Layers, Package, Building2, TrendingDown, Download, ShoppingCart, Check } from 'lucide-react';
+import { ArrowLeft, TrendingUp, AlertCircle, Clock, Target, PieChart, RefreshCw, Star, Activity, BarChart3, Layers, Package, Building2, TrendingDown, Download, ShoppingCart, Check, ChevronDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "./ui/accordion";
 
 interface BasketDetailsPageProps {
   basket: Basket | null;
@@ -19,6 +25,16 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
   // Fallback to first basket if none selected
   const currentBasket = basket || mockBaskets[0];
 
+  // Helper function to check if graphData is DualGraphData
+  const isDualGraphData = (data: any): data is { absoluteReturns: any; rollingReturns: any } => {
+    return data && 'absoluteReturns' in data && 'rollingReturns' in data;
+  };
+
+  // Helper function to check if graphData is simple GraphData
+  const isSimpleGraphData = (data: any): data is { labels: string[]; basketData: number[]; niftyData: number[] } => {
+    return data && 'labels' in data && 'basketData' in data && 'niftyData' in data;
+  };
+
   // State for API data
   const [apiData, setApiData] = useState<BasketAPIResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -26,6 +42,9 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
 
   // State for comparison timeline
   const [selectedTimeline, setSelectedTimeline] = useState<3 | 5 | 10>(3);
+  
+  // State for graph type (Absolute or Rolling Returns)
+  const [graphType, setGraphType] = useState<'absolute' | 'rolling'>('absolute');
   
   // State for editable investment amount
   const [investmentAmount, setInvestmentAmount] = useState(currentBasket.minInvestment);
@@ -39,12 +58,12 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
   // Fetch backend data for Conservative Balanced or Aggressive Hybrid baskets
   useEffect(() => {
     const fetchBasketData = async () => {
-      if (currentBasket.id === 'b10') {
-        // Conservative Balanced Basket
+      if (currentBasket.id === 'b14') {
+        // Great India Basket
         setLoading(true);
         setError(null);
         try {
-          const data = await basketAPI.getConservativeBalancedBasket(selectedTimeline);
+          const data = await basketAPI.getGreatIndiaBasket(selectedTimeline);
           setApiData(data);
         } catch (err) {
           console.error('Failed to fetch basket data:', err);
@@ -65,6 +84,45 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
         } finally {
           setLoading(false);
         }
+      } else if (currentBasket.id === 'b11') {
+        // White Basket
+        setLoading(true);
+        setError(null);
+        try {
+          const data = await basketAPI.getWhiteBasket(selectedTimeline);
+          setApiData(data);
+        } catch (err) {
+          console.error('Failed to fetch basket data:', err);
+          setError('Failed to load basket data from backend');
+        } finally {
+          setLoading(false);
+        }
+      } else if (currentBasket.id === 'b12') {
+        // Every Common India Basket
+        setLoading(true);
+        setError(null);
+        try {
+          const data = await basketAPI.getEveryCommonIndiaBasket(selectedTimeline);
+          setApiData(data);
+        } catch (err) {
+          console.error('Failed to fetch basket data:', err);
+          setError('Failed to load basket data from backend');
+        } finally {
+          setLoading(false);
+        }
+      } else if (currentBasket.id === 'b13') {
+        // Raising India Basket
+        setLoading(true);
+        setError(null);
+        try {
+          const data = await basketAPI.getRaisingIndiaBasket(selectedTimeline);
+          setApiData(data);
+        } catch (err) {
+          console.error('Failed to fetch basket data:', err);
+          setError('Failed to load basket data from backend');
+        } finally {
+          setLoading(false);
+        }
       } else {
         // Reset API data for other baskets
         setApiData(null);
@@ -73,6 +131,26 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
 
     fetchBasketData();
   }, [currentBasket.id, selectedTimeline]);
+
+  // Use API data if available, otherwise use currentBasket data
+  const actualMetrics = apiData && apiData.metrics ? {
+    cagr1Y: apiData.metrics.cagr1Y ?? currentBasket.cagr1Y,
+    cagr3Y: apiData.metrics.cagr3Y ?? currentBasket.cagr3Y,
+    cagr5Y: apiData.metrics.cagr5Y ?? currentBasket.cagr5Y,
+    risk: apiData.metrics.risk ?? currentBasket.riskPercentage,
+    sharpe: (apiData.metrics.sharpe ?? apiData.metrics.sharpeRatio) ?? currentBasket.sharpeRatio,
+    riskPercentage: apiData.metrics.riskPercentage ?? apiData.metrics.risk ?? currentBasket.riskPercentage
+  } : {
+    cagr1Y: currentBasket.cagr1Y ?? 0,
+    cagr3Y: currentBasket.cagr3Y ?? 0,
+    cagr5Y: currentBasket.cagr5Y ?? 0,
+    risk: currentBasket.riskPercentage ?? 0,
+    sharpe: currentBasket.sharpeRatio ?? 0,
+    riskPercentage: currentBasket.riskPercentage ?? 0
+  };
+
+  // Use API funds if available, otherwise use currentBasket funds
+  const displayFunds = (apiData && apiData.funds && apiData.funds.length > 0) ? apiData.funds : currentBasket.funds;
 
   const handleInvestNow = () => {
     if (!user) {
@@ -261,174 +339,137 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
   const currentNiftyValue = calculateFutureValue(comparisonAmount, selectedTimeline === 3 ? niftyCagr3Y : selectedTimeline === 5 ? niftyCagr5Y : niftyCagr10Y, selectedTimeline);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gray-50">
       <Header navigateTo={navigateTo} user={user} showCart={true} cartCount={cart.length} />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Back Button */}
         <button
           onClick={() => navigateTo('basket-list')}
-          className="flex items-center space-x-2 text-[#2E89C4] hover:text-[#2576a8] mb-6"
+          className="flex items-center space-x-2 text-[#2E89C4] hover:text-[#2576a8] mb-4"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Back to Baskets</span>
+          <span className="text-sm">Back to Baskets</span>
         </button>
 
-        {/* Basket Header */}
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-          <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <div className="flex items-center space-x-4 mb-6">
-                <div
-                  className="w-20 h-20 rounded-xl shadow-lg"
-                  style={{ 
-                    backgroundColor: currentBasket.color,
-                    border: currentBasket.color === '#FFFFFF' ? '2px solid #E5E7EB' : 'none'
-                  }}
-                />
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h1 className="text-[#1B263B]">{currentBasket.name}</h1>
-                    {apiData && (
-                      <span className="bg-gradient-to-r from-[#3BAF4A] to-[#2E89C4] text-white text-xs px-3 py-1 rounded-full">
-                        Live Data
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-gray-600">{currentBasket.description}</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <AlertCircle className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm text-gray-500">Risk Level</p>
-                    <span
-                      className={`inline-block px-3 py-1 rounded-full text-sm ${
-                        currentBasket.riskLevel === 'High'
-                          ? 'bg-red-100 text-red-700'
-                          : currentBasket.riskLevel === 'Medium'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : 'bg-green-100 text-green-700'
-                      }`}
-                    >
-                      {currentBasket.riskLevel}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <Clock className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm text-gray-500">Time Horizon</p>
-                    <p className="text-[#1B263B]">{currentBasket.timeHorizon}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <RefreshCw className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm text-gray-500">Rebalancing</p>
-                    <p className="text-[#1B263B]">{currentBasket.rebalancingFrequency}</p>
-                  </div>
-                </div>
+        {/* Compact Basket Header */}
+        <div className="bg-white rounded-lg shadow-md p-8 mb-6">
+          {/* Top Section: Icon, Title, and Investment Amount */}
+          <div className="flex items-start justify-between mb-8">
+            <div className="flex items-center space-x-4 flex-1">
+              <div
+                className="w-20 h-20 rounded-2xl shadow-sm flex-shrink-0"
+                style={{ 
+                  backgroundColor: currentBasket.color,
+                  border: currentBasket.color === '#FFFFFF' ? '2px solid #E5E7EB' : 'none'
+                }}
+              />
+              <div>
+                <h1 className="text-2xl font-semibold mb-1" style={{ color: '#1B263B' }}>{currentBasket.name}</h1>
+                <p className="text-sm" style={{ color: '#6B7280' }}>{currentBasket.description}</p>
               </div>
             </div>
-
-            <div className="bg-gradient-to-br from-[#3BAF4A]/10 to-[#2E89C4]/10 rounded-xl p-6">
-              <div className="flex items-center space-x-2 mb-4">
-                <TrendingUp className="w-5 h-5 text-[#2E89C4]" />
-                <h3 className="text-[#1B263B]">Performance (CAGR)</h3>
-                {loading && <span className="text-xs text-gray-400">(Loading...)</span>}
+            
+            {/* Investment Amount Card - Right Side */}
+            <div className="ml-6 flex items-start space-x-4">
+              <div className="border border-gray-300 rounded-lg p-4 w-64">
+                <label htmlFor="investment-amount" className="text-sm block mb-2" style={{ color: '#4B5563' }}>Investment Amount (₹/month)</label>
+                <input
+                  id="investment-amount"
+                  type="number"
+                  value={investmentAmount}
+                  onChange={(e) => handleAmountChange(e.target.value)}
+                  min={currentBasket.minInvestment}
+                  className="w-full text-3xl font-normal bg-transparent focus:outline-none mb-2"
+                  style={{ color: '#1B263B' }}
+                />
+                <p className="text-sm" style={{ color: '#6B7280' }}>Min: ₹{currentBasket.minInvestment.toLocaleString()}</p>
+                {amountError && <p className="text-xs text-red-500 mt-1">{amountError}</p>}
               </div>
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-white rounded-lg p-4">
-                  <p className="text-sm text-gray-500 mb-1">3 Years</p>
-                  <p className="text-2xl text-[#3BAF4A]">
-                    {apiData?.metrics?.cagr3Y !== undefined 
-                      ? `${apiData.metrics.cagr3Y.toFixed(2)}%` 
-                      : `${currentBasket.cagr3Y}%`}
-                  </p>
-                </div>
-                <div className="bg-white rounded-lg p-4">
-                  <p className="text-sm text-gray-500 mb-1">5 Years</p>
-                  <p className="text-2xl text-[#3BAF4A]">
-                    {apiData?.metrics?.cagr5Y !== undefined 
-                      ? `${apiData.metrics.cagr5Y.toFixed(2)}%` 
-                      : `${currentBasket.cagr5Y}%`}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-white rounded-lg p-4">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <BarChart3 className="w-4 h-4 text-gray-400" />
-                    <p className="text-sm text-gray-500">Sharpe Ratio</p>
-                  </div>
-                  <p className="text-xl text-[#1B263B]">
-                    {apiData?.metrics?.sharpeRatio !== undefined 
-                      ? apiData.metrics.sharpeRatio.toFixed(2) 
-                      : currentBasket.sharpeRatio}
-                  </p>
-                </div>
-                <div className="bg-white rounded-lg p-4">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <Activity className="w-4 h-4 text-gray-400" />
-                    <p className="text-sm text-gray-500">Std Dev (%)</p>
-                  </div>
-                  <p className="text-xl text-[#1B263B]">
-                    {apiData?.metrics?.riskPercentage !== undefined 
-                      ? `${apiData.metrics.riskPercentage.toFixed(2)}%` 
-                      : `${currentBasket.riskPercentage}%`}
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-6 border-t border-gray-200">
-                <label className="text-sm text-gray-600 block mb-2">Investment Amount (₹/month)</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={investmentAmount}
-                    onChange={(e) => handleAmountChange(e.target.value)}
-                    min={currentBasket.minInvestment}
-                    className={`w-full text-2xl text-[#1B263B] border-2 rounded-lg px-3 py-2 focus:outline-none transition-colors ${
-                      amountError 
-                        ? 'border-red-500 focus:border-red-500' 
-                        : 'border-gray-200 focus:border-[#2E89C4]'
-                    }`}
-                  />
-                </div>
-                {amountError && (
-                  <p className="text-red-500 text-sm mt-2">{amountError}</p>
-                )}
-                <p className="text-xs text-gray-500 mt-2">
-                  Minimum: ₹{currentBasket.minInvestment.toLocaleString()}/month
-                </p>
+              
+              {/* Basket NAV */}
+              <div className="bg-[#3B9DD3] text-white rounded-lg p-4 w-40 text-center">
+                <div className="text-sm mb-2">Basket NAV</div>
+                <div className="text-2xl font-semibold">₹{(investmentAmount * 0.00717).toFixed(2)}</div>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
-            <button
-              onClick={handleInvestNow}
-              className="bg-[#3BAF4A] hover:bg-[#329940] text-white py-4 rounded-lg transition-all transform hover:scale-[1.02] shadow-lg"
-            >
-              Invest Now
-            </button>
+          <hr className="border-gray-200 mb-8" />
+
+          {/* Metrics Grid - Horizontal Layout */}
+          <div className="grid grid-cols-4 gap-x-8 gap-y-6 mb-8">
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Risk</p>
+                <span className={`inline-block px-3 py-1 rounded text-sm font-medium ${
+                  currentBasket.riskLevel === 'High' ? 'bg-red-100 text-red-700' :
+                  (currentBasket.riskLevel.includes('Medium')) ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-green-100 text-green-700'
+                }`}>
+                  {currentBasket.riskLevel}
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <TrendingUp className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500 mb-1">3Y CAGR</p>
+                <p className="text-lg font-semibold text-green-600">
+                  {actualMetrics.cagr3Y.toFixed(1)}%
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <TrendingUp className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500 mb-1">5Y CAGR</p>
+                <p className="text-lg font-semibold text-green-600">
+                  {actualMetrics.cagr5Y.toFixed(1)}%
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Activity className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Std Dev (%)</p>
+                <p className="text-lg font-semibold text-[#1B263B]">
+                  {actualMetrics.riskPercentage.toFixed(1)}%
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Clock className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Time Horizon</p>
+                <p className="text-base text-[#1B263B]">{currentBasket.timeHorizon}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <BarChart3 className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Sharpe Ratio</p>
+                <p className="text-lg font-semibold text-[#1B263B]">{actualMetrics.sharpe.toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons - Compact */}
+          <div className="grid grid-cols-2 gap-4">
             <button
               onClick={handleAddToCart}
               disabled={investmentAmount < currentBasket.minInvestment}
-              className={`flex items-center justify-center space-x-2 py-4 rounded-lg transition-all transform shadow-lg ${
-                isAddedToCart 
-                  ? 'bg-[#3BAF4A] text-white'
-                  : investmentAmount < currentBasket.minInvestment
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-[#2E89C4] hover:bg-[#2576a8] text-white hover:scale-[1.02]'
-              }`}
+              className="py-4 rounded-lg transition-all flex items-center justify-center space-x-2 disabled:cursor-not-allowed text-base font-medium"
+              style={{
+                backgroundColor: investmentAmount < currentBasket.minInvestment ? '#D1D5DB' : '#3B9DD3',
+                color: '#FFFFFF'
+              }}
             >
               {isAddedToCart ? (
                 <>
@@ -444,7 +485,11 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
             </button>
             <button
               onClick={handleAssignGoal}
-              className="bg-[#E8C23A] hover:bg-[#d4b034] text-[#1B263B] py-4 rounded-lg transition-all transform hover:scale-[1.02] shadow-lg"
+              className="py-4 rounded-lg transition-all text-base font-medium"
+              style={{
+                backgroundColor: '#E8B839',
+                color: '#1B263B'
+              }}
             >
               Assign Goal & Calculate
             </button>
@@ -493,316 +538,257 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
           </div>
         </div>
 
-        {/* Fund Allocation */}
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-          <div className="flex items-center space-x-2 mb-6">
-            <PieChart className="w-6 h-6 text-[#2E89C4]" />
-            <h2 className="text-[#1B263B]">Fund Allocation</h2>
+        {/* Fund Allocation - Simplified Table */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <PieChart className="w-5 h-5 text-[#2E89C4]" />
+            <h2 className="text-lg font-semibold text-[#1B263B]">Fund Allocation</h2>
           </div>
-          <div className="space-y-4">
-            {currentBasket.funds.map((fund, index) => (
-              <div key={fund.id} className="border border-gray-200 rounded-lg p-6 hover:border-[#2E89C4] transition-colors">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-[#1B263B] mb-1">{fund.name}</h3>
-                    <div className="flex flex-wrap gap-2 text-sm">
-                      <span className="text-gray-500">{fund.category}</span>
-                      <span className="text-gray-300">•</span>
-                      <span className="text-gray-500">{fund.fundHouse}</span>
-                      <span className="text-gray-300">•</span>
-                      <span className={`${
-                        fund.risk === 'High' ? 'text-red-600' :
-                        fund.risk === 'Medium' ? 'text-yellow-600' :
-                        'text-green-600'
-                      }`}>
-                        {fund.risk} Risk
+          
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-2 text-sm font-medium text-gray-600">Fund Name</th>
+                  <th className="text-right py-3 px-2 text-sm font-medium text-gray-600">Allocation</th>
+                  <th className="text-right py-3 px-2 text-sm font-medium text-gray-600">Amount</th>
+                  <th className="text-center py-3 px-2 text-sm font-medium text-gray-600">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayFunds.slice(0, 4).map((fund, index) => (
+                  <tr key={fund.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-4 px-2">
+                      <div>
+                        <p className="text-sm font-medium text-[#1B263B]">{fund.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            fund.category === 'Equity' ? 'bg-blue-100 text-blue-700' :
+                            fund.category === 'Debt' ? 'bg-green-100 text-green-700' :
+                            'bg-purple-100 text-purple-700'
+                          }`}>
+                            {fund.category}
+                          </span>
+                          <span className="text-xs text-gray-500">{fund.fundHouse}</span>
+                          <span className={`text-xs ${
+                            fund.risk === 'High' ? 'text-red-600' :
+                            fund.risk === 'Medium' ? 'text-yellow-600' :
+                            'text-green-600'
+                          }`}>
+                            {fund.risk} Risk
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-2 text-right">
+                      <span className="text-base font-semibold text-[#2E89C4]">{fund.allocation}%</span>
+                    </td>
+                    <td className="py-4 px-2 text-right">
+                      <span className="text-base font-semibold text-[#3BAF4A]">
+                        ₹{((investmentAmount * fund.allocation) / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </span>
-                    </div>
-                  </div>
-                  <div className="text-right ml-4">
-                    <p className="text-2xl text-[#2E89C4]">{fund.allocation}%</p>
-                    <p className="text-sm text-gray-500">Allocation</p>
-                    <p className="text-lg text-[#3BAF4A] mt-1">₹{((investmentAmount * fund.allocation) / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
-                    <p className="text-xs text-gray-400">Amount</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 border-t border-gray-100">
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">NAV</p>
-                    <p className="text-[#1B263B]">₹{fund.nav.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">3Y Returns</p>
-                    <p className="text-[#3BAF4A]">{fund.returns3Y}%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">5Y Returns</p>
-                    <p className="text-[#3BAF4A]">{fund.returns5Y}%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Sharpe Ratio</p>
-                    <p className="text-[#1B263B]">{fund.sharpeRatio}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Std Dev</p>
-                    <p className="text-[#1B263B]">{fund.standardDeviation}%</p>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Star className="w-4 h-4 text-[#E8C23A] fill-current" />
-                    <span className="text-[#1B263B]">{fund.rating}/5</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+                    </td>
+                    <td className="py-4 px-2 text-center">
+                      <button className="text-[#2E89C4] hover:text-[#2576a8] text-sm flex items-center justify-center w-full space-x-1">
+                        <span>View More</span>
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Basket Composition */}
-        <div className="grid lg:grid-cols-2 gap-8 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <div className="flex items-center space-x-2 mb-6">
-              <Layers className="w-6 h-6 text-[#2E89C4]" />
-              <h2 className="text-[#1B263B]">Asset Allocation</h2>
+        {/* Compact Allocation Sections in Grid */}
+        <div className="grid lg:grid-cols-2 gap-6 mb-6">
+          {/* Asset Allocation */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <Layers className="w-5 h-5 text-[#2E89C4]" />
+              <h3 className="text-base font-semibold text-[#1B263B]">Assets Allocation</h3>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-700">Equity</span>
-                  <span className="text-[#1B263B]">{totalEquity}%</span>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-gray-700">Equity</span>
+                  <span className="text-sm font-semibold text-[#1B263B]">{totalEquity}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div className="bg-blue-500 h-3 rounded-full" style={{ width: `${totalEquity}%` }}></div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${totalEquity}%` }}></div>
                 </div>
               </div>
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-700">Debt</span>
-                  <span className="text-[#1B263B]">{totalDebt}%</span>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-gray-700">Debt</span>
+                  <span className="text-sm font-semibold text-[#1B263B]">{totalDebt}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div className="bg-green-500 h-3 rounded-full" style={{ width: `${totalDebt}%` }}></div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-green-500 h-2 rounded-full" style={{ width: `${totalDebt}%` }}></div>
                 </div>
               </div>
               {totalHybrid > 0 && (
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-700">Hybrid</span>
-                    <span className="text-[#1B263B]">{totalHybrid}%</span>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm text-gray-700">Hybrid</span>
+                    <span className="text-sm font-semibold text-[#1B263B]">{totalHybrid}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div className="bg-purple-500 h-3 rounded-full" style={{ width: `${totalHybrid}%` }}></div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${totalHybrid}%` }}></div>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <div className="flex items-center space-x-2 mb-6">
-              <Activity className="w-6 h-6 text-[#2E89C4]" />
-              <h2 className="text-[#1B263B]">Portfolio Metrics</h2>
+          {/* Investment Framework */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <BarChart3 className="w-5 h-5 text-[#2E89C4]" />
+              <h3 className="text-base font-semibold text-[#1B263B]">Investment Framework</h3>
             </div>
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <div className="flex flex-col">
-                  <span className="text-gray-600 text-sm mb-1">Fund Count</span>
-                  <span className="text-[#1B263B] text-xl">{currentBasket.funds.length}</span>
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-gray-700">Large Cap</span>
+                  <span className="text-sm font-semibold text-[#1B263B]">60%</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-gray-600 text-sm mb-1">Total Stocks</span>
-                  <span className="text-[#1B263B] text-xl">142</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-gray-600 text-sm mb-1">Beta</span>
-                  <span className="text-[#1B263B] text-xl">1.08</span>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: '60%' }}></div>
                 </div>
               </div>
-              <div className="space-y-3">
-                <div className="flex flex-col">
-                  <span className="text-gray-600 text-sm mb-1">Top 10</span>
-                  <span className="text-[#1B263B] text-xl">35.9%</span>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-gray-700">Mid Cap</span>
+                  <span className="text-sm font-semibold text-[#1B263B]">30%</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-gray-600 text-sm mb-1">Alpha</span>
-                  <span className="text-[#3BAF4A] text-xl">2.3%</span>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-purple-500 h-2 rounded-full" style={{ width: '30%' }}></div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-gray-600 text-sm mb-1">Max Drawdown</span>
-                  <span className="text-red-600 text-xl">-18.5%</span>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-gray-700">Small Cap</span>
+                  <span className="text-sm font-semibold text-[#1B263B]">10%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-orange-500 h-2 rounded-full" style={{ width: '10%' }}></div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Fundamentals & Portfolio Aggregates */}
-        <div className="grid md:grid-cols-2 gap-8 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <div className="flex items-center space-x-2 mb-6">
-              <Package className="w-6 h-6 text-[#2E89C4]" />
-              <h2 className="text-[#1B263B]">Fundamentals</h2>
+        {/* Sector and Holdings in Grid */}
+        <div className="grid lg:grid-cols-2 gap-6 mb-6">
+          {/* Sector Wise Allocation */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <Building2 className="w-5 h-5 text-[#2E89C4]" />
+              <h3 className="text-base font-semibold text-[#1B263B]">Sector Wise Allocation</h3>
             </div>
-            <div className="space-y-4">
-              <div className="flex justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Weighted Avg P/E Ratio</span>
-                <span className="text-[#1B263B]">{avgPE.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Weighted Avg P/B Ratio</span>
-                <span className="text-[#1B263B]">{avgPB.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Avg Market Cap</span>
-                <span className="text-[#1B263B]">₹{avgMarketCap.toLocaleString()} Cr</span>
-              </div>
-              <div className="flex justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Dividend Yield</span>
-                <span className="text-[#1B263B]">1.2%</span>
-              </div>
-              <div className="flex justify-between py-3">
-                <span className="text-gray-600">ROE</span>
-                <span className="text-[#1B263B]">16.8%</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <div className="flex items-center space-x-2 mb-6">
-              <BarChart3 className="w-6 h-6 text-[#2E89C4]" />
-              <h2 className="text-[#1B263B]">Portfolio Aggregates</h2>
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Total AUM</span>
-                <span className="text-[#1B263B]">₹{(currentBasket.funds.reduce((sum, f) => {
-                  const aum = parseFloat(f.aum.replace(/[₹,Cr]/g, '').trim());
-                  return sum + (aum * f.allocation / 100);
-                }, 0)).toFixed(0)} Cr</span>
-              </div>
-              <div className="flex justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Avg Expense Ratio</span>
-                <span className="text-[#1B263B]">{expenseRatio.toFixed(2)}%</span>
-              </div>
-              <div className="flex justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Portfolio Turnover</span>
-                <span className="text-[#1B263B]">{portfolioTurnover}%</span>
-              </div>
-              <div className="flex justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Avg Fund Age</span>
-                <span className="text-[#1B263B]">8.5 years</span>
-              </div>
-              <div className="flex justify-between py-3">
-                <span className="text-gray-600">Exit Load</span>
-                <span className="text-[#1B263B]">1% (if redeemed within 1 year)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Sector Allocation & Top 10 Holdings - Side by Side */}
-        <div className="grid lg:grid-cols-2 gap-8 mb-8">
-          {/* Sector Allocation */}
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <div className="flex items-center space-x-2 mb-6">
-              <Building2 className="w-6 h-6 text-[#2E89C4]" />
-              <h2 className="text-[#1B263B]">Sector Wise Allocation</h2>
-            </div>
-            <div className="space-y-4">
-              {sectorAllocation.map((sector, index) => (
-                <div key={index}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-700">{sector.sector}</span>
-                    <span className="text-[#1B263B]">{sector.allocation}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div 
-                      className="bg-gradient-to-r from-[#3BAF4A] to-[#2E89C4] h-3 rounded-full transition-all" 
-                      style={{ width: `${sector.allocation}%` }}
-                    ></div>
-                  </div>
+            <div className="space-y-2">
+              {sectorAllocation.slice(0, 4).map((sector, index) => (
+                <div key={index} className="flex justify-between items-center py-2">
+                  <span className="text-sm text-gray-700">{sector.sector}</span>
+                  <span className="text-sm font-semibold text-[#1B263B]">{sector.allocation}%</span>
                 </div>
               ))}
+              <button className="text-[#2E89C4] hover:text-[#2576a8] text-sm mt-2 flex items-center space-x-1">
+                <span>View More (3 more)</span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
           {/* Top Holdings */}
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <div className="flex items-center space-x-2 mb-6">
-              <TrendingUp className="w-6 h-6 text-[#2E89C4]" />
-              <h2 className="text-[#1B263B]">Top Holdings</h2>
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <TrendingUp className="w-5 h-5 text-[#2E89C4]" />
+              <h3 className="text-base font-semibold text-[#1B263B]">Top Holdings</h3>
             </div>
-            <div className="space-y-3">
-              {topHoldings.slice(0, 8).map((holding, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <span className="flex items-center justify-center w-6 h-6 bg-[#2E89C4]/10 text-[#2E89C4] rounded-full text-sm">
-                      {index + 1}
-                    </span>
-                    <span className="text-[#1B263B] text-sm">{holding.name}</span>
+            <div className="space-y-2">
+              {topHoldings.slice(0, 5).map((holding, index) => (
+                <div key={index} className="flex items-center justify-between py-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium text-gray-500 w-6">{index + 1}</span>
+                    <span className="text-sm text-gray-700">{holding.name}</span>
                   </div>
-                  <span className="text-[#3BAF4A]">{holding.allocation}%</span>
+                  <span className="text-sm font-semibold text-green-600">{holding.allocation}%</span>
                 </div>
               ))}
-            </div>
-            <div className="mt-4 pt-4 border-t-2 border-gray-200">
-              <div className="flex justify-between">
-                <span className="text-gray-700">Total Top 8</span>
-                <span className="text-[#2E89C4]">{topHoldings.slice(0, 8).reduce((sum, h) => sum + h.allocation, 0).toFixed(1)}%</span>
+              <button className="text-[#2E89C4] hover:text-[#2576a8] text-sm mt-2 flex items-center space-x-1">
+                <span>View More (5 more)</span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              <div className="pt-3 mt-3 border-t border-gray-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-700">Total Top 5</span>
+                  <span className="text-sm font-bold text-[#2E89C4]">21.1%</span>
+                </div>
               </div>
             </div>
-        </div>
+          </div>
         </div>
 
-        {/* Basket vs Nifty Comparison */}
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
-            <div className="flex items-center space-x-2 mb-4 sm:mb-0">
-              <TrendingUp className="w-6 h-6 text-[#2E89C4]" />
-              <h2 className="text-[#1B263B]">Returns Comparison - {currentBasket.name} vs Nifty Index</h2>
+        {/* Returns Comparison - Simplified */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="w-5 h-5 text-[#2E89C4]" />
+              <h2 className="text-lg font-semibold text-[#1B263B]">
+                Returns Comparison - {currentBasket.name} vs Nifty Index
+              </h2>
             </div>
-            <div className="w-full sm:w-auto">
-              <label className="text-sm text-gray-600 block mb-2">Comparison Amount (₹)</label>
+            <div className="flex items-center space-x-2">
+              <label htmlFor="comparison-amount" className="text-xs text-gray-600">Comparison Amount (₹)</label>
               <input
+                id="comparison-amount"
                 type="number"
                 value={comparisonAmount}
                 onChange={(e) => handleComparisonAmountChange(e.target.value)}
                 min={1000}
-                className={`w-full sm:w-48 text-lg text-[#1B263B] border-2 rounded-lg px-3 py-2 focus:outline-none transition-colors ${
-                  comparisonAmountError 
-                    ? 'border-red-500 focus:border-red-500' 
-                    : 'border-gray-200 focus:border-[#2E89C4]'
-                }`}
-                placeholder="Enter amount"
+                className="w-32 text-sm text-[#1B263B] border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-[#2E89C4]"
               />
-              {comparisonAmountError && (
-                <p className="text-red-500 text-xs mt-1">{comparisonAmountError}</p>
-              )}
             </div>
           </div>
 
-          {/* Investment Projection Text */}
-          <div className="bg-gradient-to-r from-[#3BAF4A]/10 to-[#2E89C4]/10 rounded-xl p-6 mb-6">
-            <p className="text-[#1B263B] text-center text-lg">
-              If you invest <span className="text-[#3BAF4A]">₹{comparisonAmount.toLocaleString()}</span> today, it grows to{' '}
-              <span className="text-[#3BAF4A]">₹{Math.round(currentBasketValue).toLocaleString()}</span> in{' '}
-              <span className="text-[#2E89C4]">{selectedTimeline} years</span>
-            </p>
-            <p className="text-gray-600 text-center mt-2 text-sm">
-              Compared to Nifty Index: ₹{Math.round(currentNiftyValue).toLocaleString()} | 
-              Outperformance: <span className="text-[#3BAF4A]">₹{Math.round(currentBasketValue - currentNiftyValue).toLocaleString()}</span>
-            </p>
-          </div>
+          {/* Graph Type Toggle */}
+          {isDualGraphData(apiData?.graphData) && (
+            <div className="flex justify-center space-x-2 mb-4">
+              <button
+                onClick={() => setGraphType('absolute')}
+                className={`px-6 py-2 rounded-lg text-sm transition-all ${
+                  graphType === 'absolute'
+                    ? 'bg-[#2E89C4] text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Absolute Returns
+              </button>
+              <button
+                onClick={() => setGraphType('rolling')}
+                className={`px-6 py-2 rounded-lg text-sm transition-all ${
+                  graphType === 'rolling'
+                    ? 'bg-[#2E89C4] text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Rolling Returns
+              </button>
+            </div>
+          )}
 
-          {/* Timeline Selector */}
-          <div className="flex justify-center space-x-3 mb-8">
+          {/* Timeline Selector - Compact */}
+          <div className="flex justify-center space-x-2 mb-6">
             {[3, 5, 10].map((years) => (
               <button
                 key={years}
                 onClick={() => setSelectedTimeline(years as 3 | 5 | 10)}
-                className={`px-6 py-3 rounded-lg transition-all ${
+                className={`px-8 py-2 rounded-lg text-sm transition-all ${
                   selectedTimeline === years
-                    ? 'bg-[#2E89C4] text-white shadow-lg'
+                    ? 'bg-[#2E89C4] text-white shadow-md'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -811,34 +797,67 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
             ))}
           </div>
 
-          {/* Chart */}
-          <div className="mb-8">
+          {/* Investment Summary - Compact */}
+          {!loading && (
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 mb-4">
+              <p className="text-sm text-center text-[#1B263B]">
+                If you invest <span className="font-semibold text-[#3BAF4A]">₹{comparisonAmount.toLocaleString()}</span> today, 
+                it grows to <span className="font-semibold text-[#3BAF4A]">₹{Math.round(currentBasketValue).toLocaleString()}</span> in{' '}
+                <span className="font-semibold text-[#2E89C4]">{selectedTimeline} years</span>
+              </p>
+              <p className="text-xs text-center text-gray-600 mt-1">
+                Compared to Nifty Index: ₹{Math.round(currentNiftyValue).toLocaleString()} | 
+                Outperformance: <span className="text-[#3BAF4A] font-medium">₹{Math.round(currentBasketValue - currentNiftyValue).toLocaleString()}</span>
+              </p>
+            </div>
+          )}
+
+          {/* Chart - Responsive */}
+          <div className="mb-6">
             {loading ? (
-              <div className="flex justify-center items-center h-[400px]">
+              <div className="flex justify-center items-center h-[350px]">
                 <div className="text-[#2E89C4]">Loading chart data...</div>
               </div>
             ) : error ? (
-              <div className="flex justify-center items-center h-[400px] text-red-500">
+              <div className="flex justify-center items-center h-[350px] text-red-500">
                 {error}
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={400}>
+              <ResponsiveContainer width="100%" height={350}>
                 <LineChart data={apiData?.graphData ? 
-                  apiData.graphData.labels.map((label: string, index: number) => ({
-                    year: label,
-                    basket: apiData.graphData.basketData[index],
-                    nifty: apiData.graphData.niftyData[index]
-                  })) : chartData}>
+                  (isDualGraphData(apiData.graphData) ? 
+                    (() => {
+                      const dataToUse = graphType === 'absolute' ? apiData.graphData.absoluteReturns : apiData.graphData.rollingReturns;
+                      return dataToUse.labels.map((label: string, index: number) => ({
+                        year: label,
+                        basket: dataToUse.basketData[index],
+                        nifty: dataToUse.niftyData[index]
+                      }));
+                    })() :
+                    isSimpleGraphData(apiData.graphData) ? (() => {
+                      const simpleData = apiData.graphData;
+                      return simpleData.labels.map((label: string, index: number) => ({
+                        year: label,
+                        basket: simpleData.basketData[index],
+                        nifty: simpleData.niftyData[index]
+                      }));
+                    })() : []
+                  ) : chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                   <XAxis 
                     dataKey="year" 
                     stroke="#6B7280"
-                    style={{ fontSize: '12px' }}
+                    style={{ fontSize: '10px' }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={70}
+                    interval={selectedTimeline === 3 ? (graphType === 'rolling' ? 2 : 2) : selectedTimeline === 5 ? (graphType === 'rolling' ? 4 : 3) : (graphType === 'rolling' ? 8 : 6)}
                   />
                   <YAxis 
                     stroke="#6B7280"
-                    style={{ fontSize: '12px' }}
-                    tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                    style={{ fontSize: '11px' }}
+                    tickFormatter={(value) => graphType === 'rolling' ? `${value}%` : `₹${(value / 1000).toFixed(0)}k`}
+                    domain={graphType === 'rolling' ? ['auto', 'auto'] : [0, 'auto']}
                   />
                   <Tooltip 
                     contentStyle={{ 
@@ -847,7 +866,7 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
                       borderRadius: '8px',
                       boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
                     }}
-                    formatter={(value: any) => [`₹${value.toLocaleString()}`, '']}
+                    formatter={(value: any) => graphType === 'rolling' ? [`${value}%`, ''] : [`₹${value.toLocaleString()}`, '']}
                     labelStyle={{ color: '#1B263B', fontWeight: 'bold' }}
                   />
                   <Legend 
@@ -858,19 +877,19 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
                     type="monotone" 
                     dataKey="basket" 
                     stroke="#3BAF4A" 
-                    strokeWidth={3}
+                    strokeWidth={2.5}
                     name={currentBasket.name}
-                    dot={{ fill: '#3BAF4A', r: 5 }}
-                    activeDot={{ r: 7 }}
+                    dot={false}
+                    activeDot={{ r: 6, fill: '#3BAF4A' }}
                   />
                   <Line 
                     type="monotone" 
                     dataKey="nifty" 
                     stroke="#2E89C4" 
-                    strokeWidth={3}
+                    strokeWidth={2.5}
                     name="Nifty 50"
-                    dot={{ fill: '#2E89C4', r: 5 }}
-                    activeDot={{ r: 7 }}
+                    dot={false}
+                    activeDot={{ r: 6, fill: '#2E89C4' }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -1182,6 +1201,380 @@ export function BasketDetailsPage({ basket, navigateTo, user, setSelectedBasket,
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Additional Information Section with Accordions */}
+        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+          <h2 className="text-[#1B263B] text-xl font-semibold mb-6">Additional Information</h2>
+          
+          <Accordion type="single" collapsible className="w-full space-y-2">
+            {/* Suitable Goals */}
+            <AccordionItem value="goals" className="border border-gray-200 rounded-lg px-6">
+              <AccordionTrigger className="text-[#2E89C4] hover:no-underline">
+                <div className="flex items-center space-x-2">
+                  <Target className="w-5 h-5" />
+                  <span>Suitable Goals</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-gray-700 pb-4">
+                <div className="space-y-3">
+                  <p className="mb-3">This basket is ideally suited for the following financial goals:</p>
+                  <div className="grid gap-2">
+                    {currentBasket.goals.map((goal, index) => (
+                      <div key={index} className="flex items-start space-x-2">
+                        <Check className="w-4 h-4 text-[#3BAF4A] mt-1 flex-shrink-0" />
+                        <span>{goal}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-600 mt-4 italic">
+                    Align your investment with clear financial objectives for optimal results.
+                  </p>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Basket Composition */}
+            <AccordionItem value="composition" className="border border-gray-200 rounded-lg px-6">
+              <AccordionTrigger className="text-[#2E89C4] hover:no-underline">
+                <div className="flex items-center space-x-2">
+                  <PieChart className="w-5 h-5" />
+                  <span>Basket Composition</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-gray-700 pb-4">
+                <div className="space-y-4">
+                  <p className="mb-3">This basket contains {displayFunds.length} carefully selected mutual funds:</p>
+                  {displayFunds.map((fund, index) => (
+                    <div key={index} className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-[#1B263B]">{fund.name}</span>
+                        <span className="text-[#3BAF4A] font-semibold">{fund.allocation}%</span>
+                      </div>
+                      <p className="text-sm text-gray-600">{fund.category}</p>
+                    </div>
+                  ))}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                    <p className="text-sm text-blue-900">
+                      <strong>Note:</strong> Each fund is selected based on consistent performance, fund manager expertise, 
+                      and alignment with the basket's investment strategy.
+                    </p>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Portfolio Metrics */}
+            <AccordionItem value="metrics" className="border border-gray-200 rounded-lg px-6">
+              <AccordionTrigger className="text-[#2E89C4] hover:no-underline">
+                <div className="flex items-center space-x-2">
+                  <Activity className="w-5 h-5" />
+                  <span>Portfolio Metrics</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-gray-700 pb-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
+                    <p className="text-sm text-blue-900 mb-1">1-Year CAGR</p>
+                    <p className="text-2xl font-bold text-blue-700">{actualMetrics.cagr1Y.toFixed(1)}%</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
+                    <p className="text-sm text-green-900 mb-1">3-Year CAGR</p>
+                    <p className="text-2xl font-bold text-green-700">{actualMetrics.cagr3Y.toFixed(1)}%</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
+                    <p className="text-sm text-purple-900 mb-1">5-Year CAGR</p>
+                    <p className="text-2xl font-bold text-purple-700">{actualMetrics.cagr5Y.toFixed(1)}%</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
+                    <p className="text-sm text-orange-900 mb-1">Sharpe Ratio</p>
+                    <p className="text-2xl font-bold text-orange-700">{actualMetrics.sharpe.toFixed(2)}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mt-4">
+                  <strong>CAGR:</strong> Compound Annual Growth Rate measures the annual growth rate over a specified period.
+                  <br />
+                  <strong>Sharpe Ratio:</strong> Measures risk-adjusted returns. Higher is better (&gt;1.0 is good).
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Investment Style */}
+            <AccordionItem value="style" className="border border-gray-200 rounded-lg px-6">
+              <AccordionTrigger className="text-[#2E89C4] hover:no-underline">
+                <div className="flex items-center space-x-2">
+                  <TrendingUp className="w-5 h-5" />
+                  <span>Investment Style</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-gray-700 pb-4">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg">
+                    <div>
+                      <p className="font-medium text-[#1B263B]">Growth Oriented</p>
+                      <p className="text-sm text-gray-600">Focus on capital appreciation</p>
+                    </div>
+                    <span className="text-2xl font-bold text-blue-700">
+                      {currentBasket.riskLevel === 'High' ? '70%' : currentBasket.riskLevel === 'Medium' ? '50%' : '30%'}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-lg">
+                    <div>
+                      <p className="font-medium text-[#1B263B]">Value Oriented</p>
+                      <p className="text-sm text-gray-600">Undervalued stocks with strong fundamentals</p>
+                    </div>
+                    <span className="text-2xl font-bold text-green-700">
+                      {currentBasket.riskLevel === 'High' ? '30%' : currentBasket.riskLevel === 'Medium' ? '50%' : '70%'}
+                    </span>
+                  </div>
+
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <p className="text-sm text-purple-900">
+                      The investment style balances growth and value strategies to optimize returns while managing risk 
+                      based on your {currentBasket.riskLevel.toLowerCase()} risk profile.
+                    </p>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Fundamentals */}
+            <AccordionItem value="fundamentals" className="border border-gray-200 rounded-lg px-6">
+              <AccordionTrigger className="text-[#2E89C4] hover:no-underline">
+                <div className="flex items-center space-x-2">
+                  <Building2 className="w-5 h-5" />
+                  <span>Fundamentals</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-gray-700 pb-4">
+                <div className="space-y-4">
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Risk Level</p>
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                        currentBasket.riskLevel === 'High'
+                          ? 'bg-red-100 text-red-700'
+                          : currentBasket.riskLevel === 'Medium'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-green-100 text-green-700'
+                      }`}>
+                        {currentBasket.riskLevel}
+                      </span>
+                    </div>
+                    
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Time Horizon</p>
+                      <p className="text-[#1B263B] font-medium">{currentBasket.timeHorizon}</p>
+                    </div>
+                    
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">Min. Investment</p>
+                      <p className="text-[#1B263B] font-medium">₹{currentBasket.minInvestment.toLocaleString()}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-[#3BAF4A]/10 to-[#2E89C4]/10 rounded-lg p-4 border-l-4 border-[#3BAF4A]">
+                    <p className="text-sm text-gray-700">
+                      <strong>Risk Volatility:</strong> {actualMetrics.risk.toFixed(1)}% annualized standard deviation
+                    </p>
+                    <p className="text-xs text-gray-600 mt-2">
+                      This measures the basket's price fluctuation. Lower volatility indicates more stable returns.
+                    </p>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Portfolio Aggregates */}
+            <AccordionItem value="aggregates" className="border border-gray-200 rounded-lg px-6">
+              <AccordionTrigger className="text-[#2E89C4] hover:no-underline">
+                <div className="flex items-center space-x-2">
+                  <BarChart3 className="w-5 h-5" />
+                  <span>Portfolio Aggregates</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-gray-700 pb-4">
+                <div className="space-y-4">
+                  <h4 className="font-medium text-[#1B263B] mb-3">Market Cap Allocation</h4>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-700">Large Cap (Top 100)</span>
+                        <span className="text-sm font-medium text-[#1B263B]">
+                          {currentBasket.riskLevel === 'High' ? '45%' : currentBasket.riskLevel === 'Medium' ? '60%' : '75%'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-500 h-2 rounded-full transition-all" 
+                          style={{ width: currentBasket.riskLevel === 'High' ? '45%' : currentBasket.riskLevel === 'Medium' ? '60%' : '75%' }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-700">Mid Cap (101-250)</span>
+                        <span className="text-sm font-medium text-[#1B263B]">
+                          {currentBasket.riskLevel === 'High' ? '35%' : currentBasket.riskLevel === 'Medium' ? '30%' : '20%'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-purple-500 h-2 rounded-full transition-all" 
+                          style={{ width: currentBasket.riskLevel === 'High' ? '35%' : currentBasket.riskLevel === 'Medium' ? '30%' : '20%' }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-700">Small Cap (250+)</span>
+                        <span className="text-sm font-medium text-[#1B263B]">
+                          {currentBasket.riskLevel === 'High' ? '20%' : currentBasket.riskLevel === 'Medium' ? '10%' : '5%'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-orange-500 h-2 rounded-full transition-all" 
+                          style={{ width: currentBasket.riskLevel === 'High' ? '20%' : currentBasket.riskLevel === 'Medium' ? '10%' : '5%' }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 mt-6">
+                    <div className="bg-blue-50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-blue-900 mb-1">Large Cap</p>
+                      <p className="text-xs text-blue-700">Stable, low risk</p>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-purple-900 mb-1">Mid Cap</p>
+                      <p className="text-xs text-purple-700">Balanced growth</p>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-orange-900 mb-1">Small Cap</p>
+                      <p className="text-xs text-orange-700">High growth</p>
+                    </div>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Investment Rationale & Philosophy */}
+            <AccordionItem value="rationale" className="border border-gray-200 rounded-lg px-6">
+              <AccordionTrigger className="text-[#2E89C4] hover:no-underline">
+                <div className="flex items-center space-x-2">
+                  <Layers className="w-5 h-5" />
+                  <span>Investment Rationale & Philosophy</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-gray-700 pb-4">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium text-[#1B263B] mb-2 flex items-center space-x-2">
+                      <Target className="w-4 h-4 text-[#3BAF4A]" />
+                      <span>Investment Rationale</span>
+                    </h4>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-gray-700 leading-relaxed">{currentBasket.rationale}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-[#1B263B] mb-2 flex items-center space-x-2">
+                      <Star className="w-4 h-4 text-[#2E89C4]" />
+                      <span>Basket Philosophy</span>
+                    </h4>
+                    <div className="bg-gradient-to-r from-[#3BAF4A]/5 to-[#2E89C4]/5 rounded-lg p-4 border-l-4 border-[#3BAF4A]">
+                      <p className="text-gray-700 leading-relaxed italic">{currentBasket.philosophy}</p>
+                    </div>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Investor Suitability Profile */}
+            <AccordionItem value="suitability" className="border border-gray-200 rounded-lg px-6">
+              <AccordionTrigger className="text-[#2E89C4] hover:no-underline">
+                <div className="flex items-center space-x-2">
+                  <Activity className="w-5 h-5" />
+                  <span>Investor Suitability Profile</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-gray-700 pb-4">
+                <div className="space-y-4">
+                  <p className="mb-4">{currentBasket.suitableFor}</p>
+                  
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <p className="text-sm text-blue-900 mb-2 font-medium">Age Range</p>
+                      <p className="text-[#1B263B]">{currentBasket.ageRange}</p>
+                    </div>
+
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <p className="text-sm text-green-900 mb-2 font-medium">Experience Level</p>
+                      <p className="text-[#1B263B]">{currentBasket.experienceLevel}</p>
+                    </div>
+
+                    <div className="bg-purple-50 rounded-lg p-4">
+                      <p className="text-sm text-purple-900 mb-2 font-medium">Risk Tolerance</p>
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm ${
+                        currentBasket.riskLevel === 'High'
+                          ? 'bg-red-100 text-red-700'
+                          : currentBasket.riskLevel === 'Medium'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-green-100 text-green-700'
+                      }`}>
+                        {currentBasket.riskLevel}
+                      </span>
+                    </div>
+
+                    <div className="bg-orange-50 rounded-lg p-4">
+                      <p className="text-sm text-orange-900 mb-2 font-medium">Investment Horizon</p>
+                      <p className="text-[#1B263B]">{currentBasket.timeHorizon}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-[#3BAF4A]/10 to-[#2E89C4]/10 rounded-lg p-4 border-l-4 border-[#2E89C4] mt-4">
+                    <p className="text-sm text-gray-700">
+                      <strong>Rebalancing:</strong> {currentBasket.rebalancingFrequency}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Regular rebalancing ensures your portfolio stays aligned with target allocations.
+                    </p>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Investment Disclaimer */}
+            <AccordionItem value="disclaimer" className="border border-gray-200 rounded-lg px-6">
+              <AccordionTrigger className="text-[#2E89C4] hover:no-underline">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="w-5 h-5" />
+                  <span>Investment Disclaimer</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-gray-700 pb-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-900 leading-relaxed">
+                    <strong>Risk Warning:</strong> Mutual fund investments are subject to market risks. 
+                    Past performance is not indicative of future returns. Please read all scheme related 
+                    documents carefully before investing. The performance data shown is based on historical 
+                    returns and may not be sustained in the future.
+                  </p>
+                  <p className="text-xs text-yellow-800 mt-3">
+                    Investors should consult with their financial advisor before making investment decisions. 
+                    The information provided is for educational purposes only and should not be considered 
+                    as financial advice.
+                  </p>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
 
         {/* Risk Disclaimer */}

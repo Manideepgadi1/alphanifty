@@ -1,7 +1,7 @@
 import { User as UserType } from '../App';
 import { User, ShoppingCart, Menu, X, Shield, ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
-import alphaniftyLogo from 'figma:asset/218bb0d7dc695a17e372bb77ecebe304227215d4.png';
+import alphaniftyLogo from '../assets/218bb0d7dc695a17e372bb77ecebe304227215d4.png';
 
 interface HeaderProps {
   navigateTo: (page: any) => void;
@@ -34,8 +34,8 @@ export function Header({ navigateTo, user, showCart = false, cartCount = 0 }: He
           >
             <img 
               src={alphaniftyLogo} 
-              alt="Alphanifty" 
-              className="h-10 w-auto"
+              alt="AlphaNifty" 
+              className="h-12 w-auto"
             />
           </button>
 

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .back-to-dashboard {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            color: #667eea;
+            padding: 12px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .back-to-dashboard:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .controls {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 25px;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        label {
+            font-weight: 600;
+            color: #333;
+            min-width: 100px;
+        }
+        
+        select {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+        
+        select:focus { border-color: #667eea; }
+        
+        .time-period-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        
+        .time-btn {
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .time-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .time-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .stats {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 25px;
+            display: none;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .chart-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 500px;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-to-dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Dashboard
+    </a>
+
+    <div class="container">
+        <h1>📊 Risk Analysis</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>Select Index:</label>
+                <select id="indexSelect" onchange="loadData()">
+                    <option value="">-- Choose an Index --</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>Time Period:</label>
+                <div class="time-period-group">
+                    <button class="time-btn" data-years="3">3Y</button>
+                    <button class="time-btn" data-years="5" class="active">5Y</button>
+                    <button class="time-btn" data-years="7">7Y</button>
+                    <button class="time-btn" data-years="10">10Y</button>
+                    <button class="time-btn" data-years="all">All</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="errorMessage" class="error"></div>
+        
+        <div id="statsPanel" class="stats">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Current Risk Score</div>
+                    <div class="stat-value" id="currentRisk">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Current Return</div>
+                    <div class="stat-value" id="currentReturn">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Average Risk</div>
+                    <div class="stat-value" id="avgRisk">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Risk Range</div>
+                    <div class="stat-value" id="riskRange">-</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-header">
+                <div class="chart-title">Risk Score Based on Trailing 3-Year Returns</div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="returnChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/riskometer/api';
+        let chart;
+        let selectedYears = 5;
+        
+        // Initialize chart
+        function initChart() {
+            const ctx = document.getElementById('returnChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            titleColor: '#1f2937',
+                            bodyColor: '#1f2937',
+                            borderColor: '#e5e7eb',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Risk: ' + context.parsed.y.toFixed(4);
+                                }
+                            }
+                        },
+                        zoom: {
+                            zoom: {
+                                wheel: {
+                                    enabled: true,
+                                    speed: 0.1
+                                },
+                                pinch: {
+                                    enabled: true
+                                },
+                                mode: 'x'
+                            },
+                            pan: {
+                                enabled: true,
+                                mode: 'x'
+                            },
+                            limits: {
+                                x: {min: 'original', max: 'original'}
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                zeroLine: {
+                                    type: 'line',
+                                    yMin: 0,
+                                    yMax: 0,
+                                    borderColor: '#1f2937',
+                                    borderWidth: 2
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'month',
+                                displayFormats: {
+                                    month: 'MMM yyyy',
+                                    day: 'dd MMM yyyy'
+                                }
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(209, 213, 219, 0.3)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#6b7280',
+                                font: { size: 10 },
+                                maxRotation: 0,
+                                minRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 12
+                            }
+                        },
+                        y: {
+                            min: 0,
+                            max: 1,
+                            grid: {
+                                display: true,
+                                color: 'rgba(209, 213, 219, 0.3)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#6b7280',
+                                font: { size: 10 },
+                                callback: function(value) {
+                                    return value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Load indices
+        async function loadIndices() {
+            try {
+                const response = await fetch(`${API_BASE}/indices`);
+                const data = await response.json();
+                const select = document.getElementById('indexSelect');
+                
+                // Clear existing options first
+                select.innerHTML = '<option value="">-- Choose an Index --</option>';
+                
+                // Add all indices
+                data.indices.forEach(index => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = index;
+                    select.appendChild(option);
+                });
+                
+                // Auto-load first index
+                if (data.indices.length > 0) {
+                    select.value = data.indices[0];
+                    loadData();
+                }
+            } catch (error) {
+                showError('Failed to load indices: ' + error.message);
+                console.error('Error loading indices:', error);
+            }
+        }
+        
+        // Load data
+        async function loadData() {
+            const indexName = document.getElementById('indexSelect').value;
+            if (!indexName) return;
+            
+            hideError();
+            
+            try {
+                let url = `${API_BASE}/riskometer/${encodeURIComponent(indexName)}`;
+                if (selectedYears !== 'all') {
+                    url += `?years=${selectedYears}`;
+                }
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                // Update stats
+                document.getElementById('statsPanel').style.display = 'block';
+                document.getElementById('currentRisk').textContent = data.statistics.current_risk.toFixed(4);
+                document.getElementById('currentReturn').textContent = data.statistics.current_return.toFixed(2) + '%';
+                document.getElementById('avgRisk').textContent = data.statistics.avg_risk.toFixed(4);
+                document.getElementById('riskRange').textContent = 
+                    data.statistics.min_risk.toFixed(2) + ' to ' + data.statistics.max_risk.toFixed(2);
+                
+                // Reset zoom before updating chart
+                chart.resetZoom();
+                
+                // Update chart - plot risk scores
+                chart.data.datasets = [{
+                    label: indexName,
+                    data: data.data.map(d => ({
+                        x: d.date,
+                        y: d.risk_score
+                    })),
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.5,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }];
+                
+                chart.update();
+            } catch (error) {
+                showError('Failed to load data: ' + error.message);
+            }
+        }
+        
+        // Time period buttons
+        document.querySelectorAll('.time-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedYears = this.dataset.years === 'all' ? 'all' : parseInt(this.dataset.years);
+                loadData();
+            });
+        });
+        
+
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            initChart();
+            loadIndices();
+        });
+    </script>
+</body>
+</html>

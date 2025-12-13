@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Goal-Based SIP & Lumpsum Calculator — vsfintech</title>
+
+<!-- Chart.js + html2canvas + jsPDF -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+  :root{
+    --brand:#0056ff;
+    --muted:#6b7280;
+    --bg:#f6f8fb;
+    --card:#ffffff;
+    --radius:12px;
+    --glass: rgba(255,255,255,0.6);
+    --shadow: 0 10px 30px rgba(12,20,40,0.06);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:Inter, Arial, sans-serif;
+    background:linear-gradient(180deg,var(--bg),#ffffff 60%);
+    padding:28px;
+    color:#0b1220;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1200px;margin:0 auto}
+  .header{
+    display:flex;gap:16px;align-items:center;margin-bottom:18px;justify-content:space-between;
+  }
+  .brand-left{display:flex;gap:12px;align-items:center}
+  .logo{
+    width:64px;height:64px;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#fff,#f6fbff);
+    display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);
+    border:1px solid rgba(6,24,64,0.04);padding:8px;
+  }
+  .logo img{width:100%;height:100%;object-fit:contain;display:block}
+
+  .title h1{margin:0;font-size:20px;color:var(--brand);letter-spacing:0.2px}
+  .title p{margin:6px 0 0;color:var(--muted);font-size:13px}
+
+  .header-actions{display:flex;gap:8px;align-items:center}
+  .back-btn{
+    background:#fff;border:1px solid rgba(6,24,64,0.06);padding:8px 12px;border-radius:10px;
+    display:inline-flex;align-items:center;gap:8px;color:#0b1220;font-weight:700;cursor:pointer;text-decoration:none;
+    box-shadow:0 6px 18px rgba(7,18,60,0.04);
+  }
+  .back-btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(7,18,60,0.06)}
+
+  /* grid 50/50 layout */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+  .card{
+    background:var(--card);
+    padding:18px;
+    border-radius:var(--radius);
+    border:1px solid rgba(6,24,64,0.04);
+    box-shadow: var(--shadow);
+  }
+
+  /* inputs */
+  label{display:block;font-weight:700;margin-top:8px;color:#0b1220;font-size:14px}
+  input,select{
+    width:100%;padding:12px;margin-top:8px;border-radius:10px;border:1px solid #e6eefb;
+    background:linear-gradient(180deg,#fbfdff,#ffffff);font-size:14px;outline:none;
+    transition:box-shadow .18s, transform .08s;
+  }
+  input:focus, select:focus{box-shadow:0 6px 18px rgba(0,86,255,0.08);transform:translateY(-1px)}
+
+  .small{font-size:13px;color:var(--muted)}
+  .action-row{display:flex;gap:10px;justify-content:flex-start;margin-top:14px;flex-wrap:wrap}
+  .btn{padding:10px 14px;border-radius:10px;border:none;cursor:pointer;font-weight:700;font-size:14px;letter-spacing:0.2px}
+  .btn-primary{background:var(--brand);color:#fff;box-shadow:0 8px 20px rgba(0,86,255,0.12)}
+  .btn-primary:hover{transform:translateY(-3px)}
+  .btn-ghost{background:#fff;border:1px solid rgba(0,86,255,0.08);color:var(--brand)}
+  .result-box{background:linear-gradient(180deg,#fff,#fbfdff);padding:14px;border-radius:10px;border-left:5px solid var(--brand);margin-top:12px;font-size:14px;box-shadow:0 6px 18px rgba(6,24,64,0.03)}
+  .table-wrap{margin-top:12px;overflow:auto;border-radius:8px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:10px;border-bottom:1px solid #eef6ff;text-align:right;vertical-align:middle}
+  th{background:linear-gradient(180deg,#fbfdff,#ffffff);color:var(--brand);text-align:left;font-weight:700}
+  .row-click{cursor:pointer}
+  .row-click:hover{background:rgba(74,144,226,0.04)}
+
+  /* chart card */
+  .chart-card{display:flex;flex-direction:column;gap:12px;align-items:stretch}
+  /* make canvas responsive and give tall height for clearer charts */
+  canvas{width:100%!important;height:360px!important;border-radius:10px;background:linear-gradient(180deg,#fff,#fbfdff)}
+
+  /* YEARLY TABLE (simple clean table) */
+  .yearly-table-wrap{background:var(--card);border-radius:10px;padding:14px;border:1px solid rgba(6,24,64,0.04);box-shadow:none}
+  .yearly-table{width:100%;border-collapse:collapse;font-size:14px}
+  .yearly-table th, .yearly-table td{padding:10px;border-bottom:1px solid #f0f8ff;text-align:right}
+  .yearly-table th{background:linear-gradient(180deg,#fbfdff,#ffffff);color:#0b1220;text-align:left}
+  .yearly-actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;justify-content:flex-end}
+
+  .export-btn{padding:8px 12px;border-radius:10px;border:none;background:var(--brand);color:#fff;font-weight:700;cursor:pointer}
+  .export-btn.pdf{background:#0f172a}
+  .export-btn.csv{background:#00a2ff}
+
+  .small-btn{padding:8px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);background:#fff;cursor:pointer;font-weight:700}
+
+  /* subtle footer spacing */
+  .footer-note{margin-top:10px;font-size:12px;color:var(--muted)}
+
+  /* responsive */
+  @media(max-width:980px){
+    .grid{grid-template-columns:1fr}
+    .chart-card{height:auto}
+    .header{flex-direction:column;align-items:flex-start;gap:12px}
+    .header-actions{align-self:stretch;justify-content:space-between;width:100%}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="header" role="banner">
+    <div class="brand-left">
+      <div class="logo" aria-hidden="true">
+        <!-- keep logo file name as provided; ensure file exists in same folder -->
+        <img src="logo-print-hd.png" alt="vsfintech logo">
+      </div>
+      <div class="title">
+        <h1>Goal-Based SIP & Lumpsum Calculator</h1>
+        <p class="small">Add goals, compute future cost, required SIP (with step-ups), and export reports.</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- Back button (keeps everything else intact) -->
+      <a class="back-btn" href="index.html" title="Back to calculators">
+        ← Back
+      </a>
+      <!-- micro help / export quick access could be added here later -->
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="grid">
+
+    <!-- LEFT: INPUT / FORM / Table -->
+    <div class="card" aria-labelledby="calc-form">
+      <label id="calc-form">Goal Name</label>
+      <input id="goalName" type="text" placeholder="Education" value="EDUCATION">
+
+      <label>Goal Year</label>
+      <input id="goalYear" type="number" value="" placeholder="2030">
+
+      <label>Current Cost (₹ in lakhs)</label>
+      <input id="currentCost" type="number" value="50" step="0.01">
+
+      <label>Inflation Rate (%)</label>
+      <input id="inflationRate" type="number" value="6" step="0.1">
+
+      <label>Expected Annual Return (%)</label>
+      <input id="interestRate" type="number" value="12" step="0.1">
+
+      <label>SIP Growth Rate (Annual %)</label>
+      <input id="sipGrowth" type="number" value="10" step="0.1">
+
+      <label>Lumpsum Invested Today (₹)</label>
+      <input id="lumpsumToday" type="number" value="100000">
+
+      <div class="action-row" role="toolbar" aria-label="actions">
+        <button class="btn btn-primary" onclick="handleCalculate()">Calculate</button>
+        <button class="btn btn-ghost" onclick="handleAddGoal()">Add Goal</button>
+        <button class="btn btn-ghost" onclick="resetForm()">Reset</button>
+      </div>
+
+      <div class="result-box" id="calcSummary" aria-live="polite">
+        <div style="color:var(--muted)">Calculated summary will appear here after pressing Calculate.</div>
+      </div>
+
+      <div class="table-wrap" style="margin-top:12px">
+        <table id="goalsTable" role="grid" aria-label="Goals table">
+          <thead>
+            <tr>
+              <th>Goal</th>
+              <th>Year</th>
+              <th style="text-align:right">Future Cost (₹)</th>
+              <th style="text-align:right">Lumpsum → FV (₹)</th>
+              <th style="text-align:right">Required SIP (₹)</th>
+              <th style="text-align:center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="goalsTbody"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4" style="text-align:right;font-weight:700">Total Monthly SIP</td>
+              <td id="totalSip" style="text-align:right;font-weight:700">₹0</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div style="margin-top:12px; display:flex;gap:8px;align-items:center;justify-content:flex-start">
+        <button class="small-btn" onclick="downloadCSV()">Download CSV</button>
+        <button class="small-btn" onclick="downloadPDF()">Download PDF</button>
+      </div>
+
+      <div class="footer-note">Tip: Click a goal row to render per-year breakdown on the right.</div>
+    </div>
+
+    <!-- RIGHT: CHART + YEARLY TABLE -->
+    <div class="card chart-card" aria-live="polite">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <strong id="chartTitle">No goal selected</strong>
+          <div class="small">Click a goal row to view details — or press "Show All Goals".</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="small-btn" onclick="showCombined()">Show All Goals</button>
+          <button class="small-btn" onclick="downloadChartPNG()">Export Chart PNG</button>
+        </div>
+      </div>
+
+      <canvas id="goalChart" aria-label="Goal chart"></canvas>
+
+      <!-- YEARLY TABLE (fills right side) -->
+      <div class="yearly-table-wrap" id="yearlyWrap">
+        <h4 style="margin:0 0 10px 0;color:var(--brand)">Year-by-year breakdown</h4>
+        <div style="max-height:420px; overflow:auto;">
+          <table class="yearly-table" id="yearlyTable" aria-label="Yearly breakdown table">
+            <thead>
+              <tr>
+                <th style="text-align:left">Year</th>
+                <th style="text-align:right">Invested (₹)</th>
+                <th style="text-align:right">Portfolio Value (₹)</th>
+                <th style="text-align:right">Returns (₹)</th>
+              </tr>
+            </thead>
+            <tbody id="yearlyTbody"></tbody>
+          </table>
+        </div>
+
+        <div class="yearly-actions">
+          <button class="export-btn csv" onclick="downloadYearlyCSV()">Download Yearly CSV</button>
+          <button class="export-btn pdf" onclick="downloadYearlyPDF()">Download Yearly PDF</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ---------------------------
+   Utilities & state
+   --------------------------- */
+let goals = []
+let selectedGoalId = null
+let chartInstance = null
+
+// last rendered yearly arrays (used for exports)
+let lastYearLabels = []
+let lastInvested = []
+let lastValue = []
+
+function qs(id){ return document.getElementById(id) }
+
+// Indian currency formatter (₹ 1,23,45,678)
+function fmtAmt(n){
+  if (n === null || n === undefined || isNaN(n)) return '—'
+  n = Math.round(n)
+  const sign = n < 0 ? '-' : ''
+  let x = Math.abs(n).toString()
+  let lastThree = x.substring(x.length - 3)
+  let other = x.substring(0, x.length - 3)
+  if (other !== '') lastThree = ',' + lastThree
+  return sign + '₹' + other.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + lastThree
+}
+
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])) }
+
+/* ---------------------------
+   Math functions
+   --------------------------- */
+
+function computeFutureCost(currentCostLakhs, inflation, years){
+  return currentCostLakhs * 100000 * Math.pow(1 + inflation/100, years)
+}
+
+function futureValueLumpsum(todayAmount, interest, years){
+  return todayAmount * Math.pow(1 + interest/100, years)
+}
+
+function simulateSIP(initialMonthlySIP, years, annualReturn, sipGrowthAnnualPct){
+  const r = annualReturn/100
+  const ratePerPeriod = r / 12
+  let maturity = 0
+  let sip = initialMonthlySIP
+  for (let p=1; p<=years*12; p++){
+    maturity = (maturity + sip) * (1 + ratePerPeriod)
+    if (p % 12 === 0) sip = sip * (1 + sipGrowthAnnualPct/100)
+  }
+  return maturity
+}
+
+function requiredInitialSIP(target, years, annualReturn, sipGrowthAnnualPct){
+  if (target <= 0) return 0
+  let low = 0
+  let high = Math.max(1000, target / (years * 12) * 2)
+  while (simulateSIP(high, years, annualReturn, sipGrowthAnnualPct) < target){
+    high *= 2
+    if (high > 1e9) break
+  }
+  for (let i=0;i<60;i++){
+    let mid = (low + high)/2
+    if (simulateSIP(mid, years, annualReturn, sipGrowthAnnualPct) < target) low = mid
+    else high = mid
+  }
+  return Math.round(high)
+}
+
+/* ---------------------------
+   UI: form handling
+   --------------------------- */
+
+function resetForm(){
+  qs('goalName').value = ''
+  qs('goalYear').value = ''
+  qs('currentCost').value = ''
+  qs('inflationRate').value = 6
+  qs('interestRate').value = 12
+  qs('sipGrowth').value = 10
+  qs('lumpsumToday').value = 0
+  qs('calcSummary').innerHTML = '<div style="color:var(--muted)">Calculated summary will appear here after pressing Calculate.</div>'
+}
+
+/* ---------------------------
+   API-connected Calculate
+   (saves response into window.lastGoalAPIData)
+   --------------------------- */
+async function handleCalculate(){
+
+  const name = qs('goalName').value.trim() || 'Goal';
+  const goalYear = parseInt(qs('goalYear').value);
+  const currentCost = parseFloat(qs('currentCost').value);
+  const inflation = parseFloat(qs('inflationRate').value);
+  const interest = parseFloat(qs('interestRate').value);
+  const sipGrowth = parseFloat(qs('sipGrowth').value);
+  const lumpsumToday = parseFloat(qs('lumpsumToday').value);
+
+  if (!goalYear || isNaN(currentCost) || isNaN(inflation) || isNaN(interest)){
+    alert('Please enter valid values.');
+    return;
+  }
+
+  const payload = {
+    goal_name: name,
+    goal_year: goalYear,
+    current_cost_lakhs: currentCost,
+    inflation_rate: inflation,
+    interest_rate: interest,
+    sip_growth_rate: sipGrowth,
+    lumpsum_today: lumpsumToday
+  };
+
+try {
+  const resp = await fetch("http://127.0.0.1:8000/calculate-goal", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(payload)
+  });
+
+  if (!resp.ok){
+    alert("Server Error: " + await resp.text());
+    return;
+  }
+
+  const data = await resp.json();
+
+  // ADD MISSING FIELDS SO CHARTS WORK
+  data.goal_name = name;
+  data.goal_year = goalYear;
+  data.current_cost_lakhs = currentCost;
+  data.inflation_rate = inflation;
+  data.interest_rate = interest;
+  data.sip_growth_rate = sipGrowth;
+  data.lumpsum_today = lumpsumToday;
+
+  // Update UI
+  qs('calcSummary').innerHTML = `
+    <div><b>Goal:</b> ${escapeHtml(name)} (${goalYear})</div>
+    <div><b>Future Cost:</b> ${fmtAmt(data.future_cost)}</div>
+    <div><b>Future Lumpsum:</b> ${fmtAmt(data.future_lumpsum)}</div>
+    <div><b>Required Initial Monthly SIP:</b> ${fmtAmt(data.required_initial_sip)}</div>
+    <div class="small">Years to goal: ${data.years_to_goal}</div>
+  `;
+
+  // CORRECT — NOW ADDGOAL CAN USE ALL FIELDS
+  window.lastGoalAPIData = data;
+
+} catch(err){
+  console.error(err);
+  alert("Cannot connect to API. Is backend running?");
+}
+
+}
+
+/* ---------------------------
+   Add / Remove / Render goals
+   (your provided handleAddGoal integrated unchanged)
+   --------------------------- */
+
+function handleAddGoal(){
+
+  if (!window.lastGoalAPIData){
+    alert("Please press CALCULATE first.");
+    return;
+  }
+
+  const d = window.lastGoalAPIData;
+
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+
+  const goalObj = {
+    id,
+    name: d.goal_name,
+    goalYear: d.goal_year,
+
+    // store full values so CHARTS work
+    currentCost: d.current_cost_lakhs,
+    inflation: d.inflation_rate,
+    interest: d.interest_rate,
+    sipGrowth: d.sip_growth_rate,
+    lumpsumToday: d.lumpsum_today,
+
+    computed: {
+      yearsToGoal: d.years_to_goal,
+      futureCost: d.future_cost,
+      futureLumpsum: d.future_lumpsum,
+      requiredSIP: d.required_initial_sip
+
+    }
+  };
+
+  goals.push(goalObj);
+  renderGoalsTable();
+  selectGoal(id);
+}
+
+function removeGoal(id){
+  const idx = goals.findIndex(g => g.id === id)
+  if (idx >= 0){
+    if (!confirm('Delete this goal?')) return
+    goals.splice(idx,1)
+    if (selectedGoalId === id) selectedGoalId = null
+    renderGoalsTable()
+    if (goals.length) showCombined()
+    else clearChart()
+  }
+}
+
+function renderGoalsTable(){
+  const tbody = qs('goalsTbody')
+  tbody.innerHTML = ''
+  let totalSIP = 0
+  goals.forEach(g => {
+    const tr = document.createElement('tr')
+    tr.className = 'row-click'
+    tr.title = 'Click to view goal chart'
+    tr.onclick = () => selectGoal(g.id)
+    tr.innerHTML = `
+      <td style="text-align:left">${escapeHtml(g.name)}</td>
+      <td>${g.goalYear}</td>
+      <td style="text-align:right">${fmtAmt(g.computed.futureCost)}</td>
+      <td style="text-align:right">${fmtAmt(g.computed.futureLumpsum)}</td>
+      <td style="text-align:right">${fmtAmt(g.computed.requiredSIP)}</td>
+      <td style="text-align:center"><button class="small-btn" onclick="(function(e){ e.stopPropagation(); removeGoal('${g.id}') })(event)">Delete</button></td>
+    `
+    tbody.appendChild(tr)
+    totalSIP += Number(g.computed.requiredSIP || 0)
+  })
+  qs('totalSip').innerText = fmtAmt(totalSIP)
+}
+
+/* ---------------------------
+   Charts & Yearly Table
+   --------------------------- */
+
+function clearChart(){
+  qs('chartTitle').innerText = 'No goal selected'
+  qs('yearlyTbody').innerHTML = ''
+  lastYearLabels = []; lastInvested = []; lastValue = []
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null }
+}
+
+function selectGoal(id){
+  const g = goals.find(x => x.id === id)
+  if(!g) return
+  selectedGoalId = id
+  qs('chartTitle').innerText = `${g.name} (${g.goalYear})`
+
+  const years = g.computed.yearsToGoal || 1
+  const freq = 12
+  let labels = []
+  let investedEachYear = []
+  let valueEachYear = []
+
+  let currentSIP = Number(g.computed.requiredSIP || 0)
+  let maturity = 0
+
+  for (let y=1; y<=Math.max(1, years); y++){
+    let investedY = 0
+    for (let m=1; m<=freq; m++){
+      maturity = (maturity + currentSIP) * (1 + (g.interest/100)/12)
+      investedY += currentSIP
+    }
+    labels.push('Year ' + y)
+    investedEachYear.push(Math.round(investedY))
+    valueEachYear.push(Math.round(maturity))
+    currentSIP = currentSIP * (1 + g.sipGrowth/100)
+  }
+
+  // store last arrays for export
+  lastYearLabels = labels.slice()
+  lastInvested = investedEachYear.slice()
+  lastValue = valueEachYear.slice()
+
+  renderBarChart(labels, investedEachYear, valueEachYear)
+  renderYearlyTable(labels, investedEachYear, valueEachYear)
+}
+
+function showCombined(){
+  selectedGoalId = null
+  qs('chartTitle').innerText = 'All Goals — Combined'
+  let maxYears = 0
+  goals.forEach(g => { maxYears = Math.max(maxYears, g.computed.yearsToGoal || 1) })
+  if (maxYears === 0){ clearChart(); return }
+
+  const labels = Array.from({length: maxYears}, (_,i) => 'Year ' + (i+1))
+
+  // compute combined value/invested per year
+  const combinedValues = Array(maxYears).fill(0)
+  const combinedInvested = Array(maxYears).fill(0)
+  goals.forEach(g => {
+    let sip = g.computed.requiredSIP
+    let maturity = 0
+    for (let y=1;y<=maxYears;y++){
+      for (let m=1;m<=12;m++){
+        maturity = (maturity + sip) * (1 + (g.interest/100)/12)
+      }
+      combinedValues[y-1] += Math.round(maturity)
+      combinedInvested[y-1] += Math.round(sip * 12)
+      sip = Math.round(sip * (1 + g.sipGrowth/100))
+    }
+  })
+
+  // prepare datasets just for chart visualization (per-goal lines)
+  const datasets = goals.map((g, idx) => {
+    let sip = g.computed.requiredSIP
+    let maturity = 0
+    const arr = []
+    for (let y=1; y<=maxYears; y++){
+      for (let m=1; m<=12; m++){
+        maturity = (maturity + sip) * (1 + (g.interest/100)/12)
+      }
+      arr.push(Math.round(maturity))
+      sip = sip * (1 + g.sipGrowth/100)
+    }
+    const color = pickColor(idx)
+    return { label: g.name + ' ('+g.goalYear+')', data: arr, borderColor: color, backgroundColor: hexToRgba(color,0.2), fill:false, tension:0.3 }
+  })
+
+  lastYearLabels = labels.slice()
+  lastInvested = combinedInvested.slice()
+  lastValue = combinedValues.slice()
+
+  if (chartInstance) chartInstance.destroy()
+  chartInstance = new Chart(qs('goalChart'), {
+    type: 'line',
+    data: { labels, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'top'}},
+      elements:{line:{tension:0.35}},
+      animation:{duration:700,easing:'easeOutCubic'}
+    }
+  })
+
+  renderYearlyTable(labels, lastInvested, lastValue)
+}
+
+function renderBarChart(labels, investedData, valueData){
+  if (chartInstance) chartInstance.destroy()
+  chartInstance = new Chart(qs('goalChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Total Invested',
+          data: investedData,
+          backgroundColor: '#4A90E2',
+          borderRadius: 10,
+          borderSkipped: false,
+          maxBarThickness: 36
+        },
+        {
+          label: 'Portfolio Value',
+          data: valueData,
+          backgroundColor: '#5cd65c',
+          borderRadius: 10,
+          borderSkipped: false,
+          maxBarThickness: 36
+        }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top'},
+        tooltip:{mode:'index',intersect:false}
+      },
+      interaction:{mode:'nearest',axis:'x',intersect:false},
+      scales:{
+        y:{
+          ticks:{callback: v => fmtAmt(v)},
+          grid:{color:'rgba(6,24,64,0.04)'}
+        },
+        x:{
+          grid:{display:false}
+        }
+      },
+      animation:{duration:700,easing:'easeOutCubic'}
+    }
+  })
+}
+
+/* RENDER YEARLY TABLE */
+function renderYearlyTable(labels, invested, value){
+  const tbody = qs('yearlyTbody')
+  tbody.innerHTML = ''
+  for (let i=0;i<labels.length;i++){
+    const inv = invested[i] || 0
+    const val = value[i] || 0
+    const ret = val - inv
+    const tr = document.createElement('tr')
+    tr.innerHTML = `
+      <td style="text-align:left">${escapeHtml(labels[i])}</td>
+      <td style="text-align:right">${fmtAmt(inv)}</td>
+      <td style="text-align:right">${fmtAmt(val)}</td>
+      <td style="text-align:right">${fmtAmt(ret)}</td>
+    `
+    tbody.appendChild(tr)
+  }
+}
+
+/* ---------------------------
+   Yearly exports: CSV & PDF
+   --------------------------- */
+
+function downloadYearlyCSV(){
+  if (!lastYearLabels || lastYearLabels.length === 0){
+    alert('No yearly data to export. Select a goal or Show All Goals first.')
+    return
+  }
+  // Add a small header row referencing logo (CSV cannot embed images)
+  const rows = [['vsfintech - logo: logo-print-hd.png'], ['Year','Invested (₹)','Portfolio Value (₹)','Returns (₹)']]
+  for (let i=0;i<lastYearLabels.length;i++){
+    rows.push([
+      lastYearLabels[i],
+      Math.round(lastInvested[i] || 0),
+      Math.round(lastValue[i] || 0),
+      Math.round((lastValue[i] || 0) - (lastInvested[i] || 0))
+    ])
+  }
+  const csv = rows.map(r => r.join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = 'yearly-breakdown.csv'
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+
+async function downloadYearlyPDF(){
+  if (!lastYearLabels || lastYearLabels.length === 0){
+    alert('No yearly data to export. Select a goal or Show All Goals first.')
+    return
+  }
+
+  // Build table wrapper for clean rendering (and include logo at top)
+  const wrapper = document.createElement('div')
+  wrapper.style.width = '900px'
+  wrapper.style.padding = '18px'
+  wrapper.style.background = '#fff'
+  wrapper.style.color = '#0b1220'
+  wrapper.style.fontFamily = 'Arial, sans-serif'
+  wrapper.style.fontSize = '12px'
+  wrapper.style.borderRadius = '8px'
+
+  // Header with logo + title
+  const headerRow = document.createElement('div')
+  headerRow.style.display = 'flex'
+  headerRow.style.alignItems = 'center'
+  headerRow.style.gap = '12px'
+  headerRow.style.marginBottom = '12px'
+
+  const logoImg = document.createElement('img')
+  logoImg.src = 'logo-print-hd.png'
+  logoImg.alt = 'vsfintech'
+  logoImg.style.width = '84px'
+  logoImg.style.height = '84px'
+  logoImg.style.objectFit = 'contain'
+  headerRow.appendChild(logoImg)
+
+  const title = document.createElement('div')
+  title.style.fontSize = '18px'
+  title.style.fontWeight = '800'
+  title.innerText = 'Year-by-Year Breakdown'
+  headerRow.appendChild(title)
+
+  wrapper.appendChild(headerRow)
+
+  const meta = document.createElement('div')
+  meta.style.marginBottom = '12px'
+  meta.style.color = '#6b7280'
+  meta.innerText = `Generated: ${new Date().toLocaleString()}`
+  wrapper.appendChild(meta)
+
+  const tbl = document.createElement('table')
+  tbl.style.width = '100%'
+  tbl.style.borderCollapse = 'collapse'
+  const thead = document.createElement('thead')
+  thead.innerHTML = `<tr>
+    <th style="text-align:left;padding:8px;border-bottom:1px solid #ddd">Year</th>
+    <th style="text-align:right;padding:8px;border-bottom:1px solid #ddd">Invested (₹)</th>
+    <th style="text-align:right;padding:8px;border-bottom:1px solid #ddd">Portfolio Value (₹)</th>
+    <th style="text-align:right;padding:8px;border-bottom:1px solid #ddd">Returns (₹)</th>
+  </tr>`
+  tbl.appendChild(thead)
+
+  const tbody = document.createElement('tbody')
+  for (let i=0;i<lastYearLabels.length;i++){
+    const inv = Math.round(lastInvested[i] || 0)
+    const val = Math.round(lastValue[i] || 0)
+    const ret = val - inv
+    const row = document.createElement('tr')
+    row.innerHTML = `
+      <td style="text-align:left;padding:8px;border-bottom:1px solid #f0f0f0">${escapeHtml(lastYearLabels[i])}</td>
+      <td style="text-align:right;padding:8px;border-bottom:1px solid #f0f0f0">${fmtAmt(inv)}</td>
+      <td style="text-align:right;padding:8px;border-bottom:1px solid #f0f0f0">${fmtAmt(val)}</td>
+      <td style="text-align:right;padding:8px;border-bottom:1px solid #f0f0f0">${fmtAmt(ret)}</td>
+    `
+    tbody.appendChild(row)
+  }
+  tbl.appendChild(tbody)
+  wrapper.appendChild(tbl)
+
+  document.body.appendChild(wrapper) // attach so html2canvas can render
+
+  // render to canvas and create PDF
+  const canvas = await html2canvas(wrapper, { scale: 2, useCORS:true, backgroundColor:'#ffffff' })
+  const imgData = canvas.toDataURL('image/png')
+
+  const { jsPDF } = window.jspdf
+  const pdf = new jsPDF('p','pt','a4')
+  const pdfW = pdf.internal.pageSize.getWidth()
+  const imgW = pdfW - 40
+  const imgH = (canvas.height * imgW) / canvas.width
+
+  pdf.addImage(imgData, 'PNG', 20, 20, imgW, imgH)
+
+  // if content spills multiple pages we add the same image repeatedly (safe approach for modest lengths)
+  let totalHeight = imgH
+  let pageHeight = pdf.internal.pageSize.getHeight() - 40
+  let pages = Math.ceil(totalHeight / pageHeight)
+  for (let p=1; p<pages; p++){
+    pdf.addPage()
+    pdf.addImage(imgData, 'PNG', 20, 20, imgW, imgH)
+  }
+
+  pdf.setFontSize(10)
+  pdf.text('vsfintech — Yearly Breakdown', 40, 16)
+  pdf.text('Generated: ' + new Date().toLocaleString(), pdfW - 220, 16)
+  pdf.save('yearly-breakdown.pdf')
+
+  document.body.removeChild(wrapper)
+}
+
+/* ---------------------------
+   Other exports (main)
+   --------------------------- */
+
+function downloadCSV(){
+  if (goals.length === 0){ alert('No goals to download'); return }
+  // Include small logo reference line as CSV cannot store images
+  const headers = ['vsfintech - logo: logo-print-hd.png', '']
+  const cols = ['Goal','Year','Future Cost (₹)','Lumpsum FV (₹)','Required Monthly SIP (₹)']
+  const rows = goals.map(g => [g.name, g.goalYear, Math.round(g.computed.futureCost), Math.round(g.computed.futureLumpsum), Math.round(g.computed.requiredSIP)])
+  const csvRows = [cols.join(',')]
+  rows.forEach(r => csvRows.push(r.join(',')))
+  const csv = [headers.join(',')].concat(csvRows).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = 'goals.csv'
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+
+async function downloadPDF(){
+  if (goals.length === 0){ if(!confirm('No goals in table. Still export current view?')) return }
+  const { jsPDF } = window.jspdf
+  // capture the .wrap which includes the logo in header so saved PDF includes logo
+  const canvas = await html2canvas(document.querySelector('.wrap'), { scale: 2, useCORS:true, backgroundColor:'#ffffff' })
+  const img = canvas.toDataURL('image/png')
+  const pdf = new jsPDF('p','pt','a4')
+  const w = pdf.internal.pageSize.getWidth()
+  const h = (canvas.height * w) / canvas.width
+  pdf.addImage(img,'PNG',0,0,w,h)
+  pdf.setFontSize(10)
+  pdf.text('vsfintech — Goal Report', 40, 20)
+  pdf.text('Generated: ' + new Date().toLocaleString(), w - 220, 20)
+  pdf.save('goals-report.pdf')
+}
+
+function downloadChartPNG(){
+  if (!chartInstance){ alert('Generate a chart first by selecting a goal or showing all goals.'); return }
+  // Create a composed image that includes the logo above the chart canvas
+  const chartCanvas = qs('goalChart')
+  const chartImg = chartCanvas.toDataURL('image/png')
+
+  const logo = new Image()
+  logo.src = 'logo-print-hd.png'
+  logo.crossOrigin = 'anonymous'
+
+  logo.onload = () => {
+    const padding = 18
+    const logoW = 120
+    const logoH = Math.round((logo.height / logo.width) * logoW)
+    const finalW = Math.max(chartCanvas.width, logoW + padding*2)
+    const finalH = logoH + padding + chartCanvas.height
+
+    const tmp = document.createElement('canvas')
+    tmp.width = finalW
+    tmp.height = finalH
+    const ctx = tmp.getContext('2d')
+
+    // white background
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0,0,finalW,finalH)
+
+    // draw logo centered
+    const logoX = Math.round((finalW - logoW)/2)
+    ctx.drawImage(logo, logoX, padding, logoW, logoH)
+
+    // draw chart below
+    const chartImage = new Image()
+    chartImage.src = chartImg
+    chartImage.onload = () => {
+      ctx.drawImage(chartImage, 0, logoH + padding, finalW, chartCanvas.height)
+      const link = document.createElement('a')
+      link.href = tmp.toDataURL('image/png')
+      link.download = 'goal-chart.png'
+      link.click()
+    }
+  }
+
+  // fallback if logo fails to load — just download chart
+  logo.onerror = () => {
+    const link = document.createElement('a')
+    link.href = chartImg
+    link.download = 'goal-chart.png'
+    link.click()
+  }
+}
+
+/* ---------------------------
+   Helpers: colors & escaping
+   --------------------------- */
+function pickColor(i){
+  const palette = ['#4A90E2','#FF8A00','#7C4DFF','#00B388','#FF5A7A','#FFC107','#00A2FF','#8BC34A']
+  return palette[i % palette.length]
+}
+function hexToRgba(hex, alpha){
+  hex = hex.replace('#','')
+  const r = parseInt(hex.substring(0,2),16), g = parseInt(hex.substring(2,4),16), b = parseInt(hex.substring(4,6),16)
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
+/* ---------------------------
+   Init
+   --------------------------- */
+function init(){
+  resetForm()
+  renderGoalsTable()
+  clearChart()
+}
+init()
+</script>
+</body>
+</html>

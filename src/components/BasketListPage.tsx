@@ -10,9 +10,11 @@ interface BasketListPageProps {
   setSelectedBasket: (basket: Basket) => void;
   cart?: CartItem[];
   addToCart?: (item: CartItem) => void;
+  onShowCalculator?: () => void;
+  onShowHelp?: () => void;
 }
 
-export function BasketListPage({ navigateTo, user, setSelectedBasket, cart, addToCart }: BasketListPageProps) {
+export function BasketListPage({ navigateTo, user, setSelectedBasket, cart, addToCart, onShowCalculator, onShowHelp }: BasketListPageProps) {
   const [filters, setFilters] = useState({
     age: '',
     risk: '',
@@ -26,7 +28,35 @@ export function BasketListPage({ navigateTo, user, setSelectedBasket, cart, addT
   });
   const [showFilters, setShowFilters] = useState(false);
 
-  const filteredBaskets = mockBaskets.filter(basket => {
+  // Function to extract minimum years from time horizon string
+  const getTimeHorizonYears = (timeHorizon: string): number => {
+    const match = timeHorizon.match(/(\d+)/);
+    return match ? parseInt(match[0]) : 999;
+  };
+
+  // Function to check if basket is a dummy basket (to be shown at end)
+  const isDummyBasket = (basket: Basket): boolean => {
+    const dummyBasketIds = ['b4', 'b2', 'b1', 'b7']; // Yellow, Blue, Orange Basket, Child Education (dummy baskets without real data)
+    return dummyBasketIds.includes(basket.id);
+  };
+
+  // Function to get color priority (lower number = higher priority)
+  const getColorPriority = (color: string): number => {
+    const colorOrder: { [key: string]: number } = {
+      '#FF6B35': 1,  // Orange
+      '#FF9933': 1,  // Orange variant
+      '#E8C23A': 2,  // Yellow
+      '#F59E0B': 2,  // Yellow variant
+      '#2E89C4': 3,  // Blue
+      '#3B9DD3': 3,  // Blue variant
+      '#3BAF4A': 4,  // Green
+      '#10B981': 4,  // Green variant
+    };
+    return colorOrder[color] || 999;
+  };
+
+  const filteredBaskets = mockBaskets
+    .filter(basket => {
     // Risk level filter
     if (filters.risk && basket.riskLevel !== filters.risk) return false;
     
@@ -70,6 +100,26 @@ export function BasketListPage({ navigateTo, user, setSelectedBasket, cart, addT
     }
     
     return true;
+  })
+  .sort((a, b) => {
+    const isDummyA = isDummyBasket(a);
+    const isDummyB = isDummyBasket(b);
+    
+    // Dummy baskets always go to the end
+    if (isDummyA && !isDummyB) return 1;
+    if (!isDummyA && isDummyB) return -1;
+    
+    // Both are regular baskets or both are dummy baskets
+    const yearsA = getTimeHorizonYears(a.timeHorizon);
+    const yearsB = getTimeHorizonYears(b.timeHorizon);
+    
+    // Primary sort: by time horizon (ascending)
+    if (yearsA !== yearsB) {
+      return yearsA - yearsB;
+    }
+    
+    // Secondary sort: by color priority (orange, yellow, blue, green)
+    return getColorPriority(a.color) - getColorPriority(b.color);
   });
 
   const handleViewBasket = (basket: Basket) => {
@@ -79,7 +129,7 @@ export function BasketListPage({ navigateTo, user, setSelectedBasket, cart, addT
 
   return (
     <div className="min-h-screen">
-      <Header navigateTo={navigateTo} user={user} showCart={true} cartCount={cart.length} />
+      <Header navigateTo={navigateTo} user={user} showCart={true} cartCount={cart.length} onShowCalculator={onShowCalculator} onShowHelp={onShowHelp} />
 
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-[#2E89C4] to-[#1B263B] text-white py-12 px-4">
@@ -135,8 +185,9 @@ export function BasketListPage({ navigateTo, user, setSelectedBasket, cart, addT
                 </div>
 
                 <div>
-                  <label className="block text-sm text-gray-700 mb-2">Experience Level</label>
+                  <label htmlFor="experience-filter" className="block text-sm text-gray-700 mb-2">Experience Level</label>
                   <select
+                    id="experience-filter"
                     value={filters.experience}
                     onChange={(e) => setFilters({ ...filters, experience: e.target.value })}
                     className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#2E89C4] focus:outline-none"
@@ -149,8 +200,9 @@ export function BasketListPage({ navigateTo, user, setSelectedBasket, cart, addT
                 </div>
 
                 <div>
-                  <label className="block text-sm text-gray-700 mb-2">Risk Appetite</label>
+                  <label htmlFor="risk-filter" className="block text-sm text-gray-700 mb-2">Risk Appetite</label>
                   <select
+                    id="risk-filter"
                     value={filters.risk}
                     onChange={(e) => setFilters({ ...filters, risk: e.target.value })}
                     className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#2E89C4] focus:outline-none"
@@ -163,8 +215,9 @@ export function BasketListPage({ navigateTo, user, setSelectedBasket, cart, addT
                 </div>
 
                 <div>
-                  <label className="block text-sm text-gray-700 mb-2">Investment Capacity</label>
+                  <label htmlFor="amount-filter" className="block text-sm text-gray-700 mb-2">Investment Capacity</label>
                   <select
+                    id="amount-filter"
                     value={filters.amount}
                     onChange={(e) => setFilters({ ...filters, amount: e.target.value })}
                     className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#2E89C4] focus:outline-none"
@@ -188,8 +241,9 @@ export function BasketListPage({ navigateTo, user, setSelectedBasket, cart, addT
               </h4>
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-700 mb-2">Investment Goal</label>
+                  <label htmlFor="goal-filter" className="block text-sm text-gray-700 mb-2">Investment Goal</label>
                   <select
+                    id="goal-filter"
                     value={filters.goal}
                     onChange={(e) => setFilters({ ...filters, goal: e.target.value })}
                     className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#2E89C4] focus:outline-none"
@@ -205,8 +259,9 @@ export function BasketListPage({ navigateTo, user, setSelectedBasket, cart, addT
                 </div>
 
                 <div>
-                  <label className="block text-sm text-gray-700 mb-2">Time Horizon (Years)</label>
+                  <label htmlFor="timeframe-filter" className="block text-sm text-gray-700 mb-2">Time Horizon (Years)</label>
                   <select
+                    id="timeframe-filter"
                     value={filters.timeframe}
                     onChange={(e) => setFilters({ ...filters, timeframe: e.target.value })}
                     className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#2E89C4] focus:outline-none"
@@ -223,6 +278,8 @@ export function BasketListPage({ navigateTo, user, setSelectedBasket, cart, addT
                   <label className="block text-sm text-gray-700 mb-2">Expected Returns (CAGR %)</label>
                   <div className="grid grid-cols-3 gap-2">
                     <select
+                      id="cagr-period-filter"
+                      aria-label="CAGR Period"
                       value={filters.cagrPeriod}
                       onChange={(e) => setFilters({ ...filters, cagrPeriod: e.target.value })}
                       className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#2E89C4] focus:outline-none"

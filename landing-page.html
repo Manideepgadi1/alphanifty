@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Projects Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 60px;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .project-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .project-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .project-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .project-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .project-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 12px;
+        }
+
+        .project-description {
+            color: #718096;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .project-tag {
+            display: inline-block;
+            background: #e6f2ff;
+            color: #667eea;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .project-link {
+            display: inline-flex;
+            align-items: center;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 15px;
+            transition: color 0.3s ease;
+        }
+
+        .project-link:hover {
+            color: #764ba2;
+        }
+
+        .project-link svg {
+            margin-left: 8px;
+            transition: transform 0.3s ease;
+        }
+
+        .project-link:hover svg {
+            transform: translateX(5px);
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 60px;
+            opacity: 0.9;
+            animation: fadeIn 1s ease 0.5s both;
+        }
+
+        .footer p {
+            font-size: 0.95rem;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            .header p {
+                font-size: 1rem;
+            }
+            .projects-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 0;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: scaleIn 0.4s ease;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .modal-header-icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+            animation: bounce 1s ease infinite;
+        }
+
+        .modal-header h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .modal-header p {
+            font-size: 1rem;
+            opacity: 0.95;
+        }
+
+        .modal-body {
+            padding: 35px;
+            text-align: center;
+        }
+
+        .modal-body p {
+            color: #4a5568;
+            font-size: 1.05rem;
+            line-height: 1.7;
+            margin-bottom: 25px;
+        }
+
+        .modal-features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .modal-feature {
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #2d3748;
+        }
+
+        .modal-feature-icon {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            padding: 14px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-btn-primary {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .modal-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+        }
+
+        .modal-btn-secondary {
+            background: #e5e7eb;
+            color: #4b5563;
+        }
+
+        .modal-btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Floating Alphanifty Button */
+        .floating-alphanifty-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 50px;
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 999;
+            transition: all 0.3s ease;
+            animation: floatPulse 2s ease-in-out infinite;
+            border: none;
+            text-decoration: none;
+        }
+
+        .floating-alphanifty-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 35px rgba(16, 185, 129, 0.6);
+        }
+
+        .floating-btn-icon {
+            width: 24px;
+            height: 24px;
+            stroke-width: 2.5;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
+        @keyframes floatPulse {
+            0%, 100% {
+                transform: translateY(0) scale(1);
+            }
+            50% {
+                transform: translateY(-8px) scale(1.05);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .modal-features {
+                grid-template-columns: 1fr;
+            }
+            .modal-buttons {
+                flex-direction: column;
+            }
+            .modal-btn {
+                width: 100%;
+                justify-content: center;
+            }
+            .floating-alphanifty-btn {
+                bottom: 20px;
+                right: 20px;
+                padding: 14px 20px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating Alphanifty Button -->
+    <a href="/alphanifty/" target="_blank" class="floating-alphanifty-btn" title="Open Alphanifty Investment Platform">
+        <svg class="floating-btn-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+        </svg>
+        <span>Alphanifty</span>
+    </a>
+    <!-- Alphanifty Modal -->
+    <div class="modal-overlay" id="alphaniftyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-header-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <h2>Alphanifty Investment Platform</h2>
+                <p>Smart Mutual Fund Basket Investing</p>
+            </div>
+            <div class="modal-body">
+                <p>Create custom mutual fund baskets, explore curated investment strategies, and track your portfolio with real-time analytics.</p>
+                
+                <div class="modal-features">
+                    <div class="modal-feature">
+                        <span class="modal-feature-icon">📊</span>
+                        <span>Live Market Data</span>
+                    </div>
+                    <div class="modal-feature">
+                        <span class="modal-feature-icon">🎯</span>
+                        <span>Custom Baskets</span>
+                    </div>
+                    <div class="modal-feature">
+                        <span class="modal-feature-icon">📈</span>
+                        <span>Performance Tracking</span>
+                    </div>
+                    <div class="modal-feature">
+                        <span class="modal-feature-icon">🔒</span>
+                        <span>Secure Platform</span>
+                    </div>
+                </div>
+
+                <div class="modal-buttons">
+                    <a href="/alphanifty/" target="_blank" class="modal-btn modal-btn-primary">
+                        <span>Launch Platform</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                    <button class="modal-btn modal-btn-secondary" onclick="closeModal()">
+                        Explore Other Apps
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="header">
+            <h1>My Projects Dashboard</h1>
+            <p>Explore interactive financial analysis and visualization tools</p>
+        </div>
+
+        <div class="projects-grid">
+            <!-- RightSector -->
+            <div class="project-card" onclick="window.location.href='/RightSector/'">
+                <div class="project-icon">&#127919;</div>
+                <h2 class="project-title">RightSector</h2>
+                <p class="project-description">
+                    Sector rotation analysis and recommendation engine to identify high-potential market sectors.
+                </p>
+                <div>
+                    <span class="project-tag">Sector Analysis</span>
+                    <span class="project-tag">Recommendations</span>
+                    <span class="project-tag">Static</span>
+                </div>
+                <a href="/RightSector/" class="project-link" onclick="event.stopPropagation()">
+                    Launch App
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+
+            <!-- RightTime -->
+            <div class="project-card" onclick="window.location.href='/RightTime/'">
+                <div class="project-icon">&#9200;</div>
+                <h2 class="project-title">RightTime</h2>
+                <p class="project-description">
+                    Time-series analysis tool for optimal market timing with bar-line charts and predictive indicators.
+                </p>
+                <div>
+                    <span class="project-tag">Time-series</span>
+                    <span class="project-tag">Prediction</span>
+                    <span class="project-tag">FastAPI</span>
+                </div>
+                <a href="/RightTime/" class="project-link" onclick="event.stopPropagation()">
+                    Launch App
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+
+            <!-- Return Heatmap -->
+            <div class="project-card" onclick="window.location.href='/Sector-Heatmap/'">
+                <div class="project-icon">&#128202;</div>
+                <h2 class="project-title">Return Heatmap</h2>
+                <p class="project-description">
+                    Interactive heatmap visualization for sector performance analysis with real-time data updates and color-coded indicators.
+                </p>
+                <div>
+                    <span class="project-tag">FastAPI</span>
+                    <span class="project-tag">Visualization</span>
+                    <span class="project-tag">Real-time</span>
+                </div>
+                <a href="/Sector-Heatmap/" class="project-link" onclick="event.stopPropagation()">
+                    Launch App
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+
+            <!-- Risk-Reward -->
+            <div class="project-card" onclick="window.location.href='/risk-reward/'">
+                <div class="project-icon">&#9878;</div>
+                <h2 class="project-title">Risk-Reward</h2>
+                <p class="project-description">
+                    Calculate and visualize risk-adjusted returns, volatility metrics, and momentum indicators for indices.
+                </p>
+                <div>
+                    <span class="project-tag">Flask</span>
+                    <span class="project-tag">Risk Metrics</span>
+                    <span class="project-tag">Heatmaps</span>
+                </div>
+                <a href="/risk-reward/" class="project-link" onclick="event.stopPropagation()">
+                    Launch App
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+         
+        <!-- Riskometer --->
+        <div class="project-card" onclick="window.location.href='/riskometer/'">
+             <div class="project-icon">&#128200;</div>
+             <h2 class="project-title">Riskometer</h2>
+             <p class="project-description">
+                 Trailing 3-year returns analysis with interactive visualization and risk assessment for Indian market indices.
+             </p>
+             <div>
+                 <span class="project-tag">Returns</span>
+                 <span class="project-tag">Risk Analysis</span>
+                 <span class="project-tag">Visualization</span>
+             </div>
+             <a href="/riskometer/" class="project-link" onclick="event.stopPropagation()">
+                 Launch APP
+                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M5 12h14M12 5l7 7-7-7"/>
+                 </svg>
+             </a>
+         </div>
+
+            <!-- Multi-charts -->
+            <div class="project-card" onclick="window.location.href='/multi-charts/'">
+                <div class="project-icon">&#128200;</div>
+                <h2 class="project-title">Multi-charts</h2>
+                <p class="project-description">
+                    Comprehensive charting solution with multiple visualization types, technical indicators, and customizable views.
+                </p>
+                <div>
+                    <span class="project-tag">Charts</span>
+                    <span class="project-tag">Analytics</span>
+                    <span class="project-tag">Dashboard</span>
+                </div>
+                <a href="/multi-charts/" class="project-link" onclick="event.stopPropagation()">
+                    Launch App
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+     </div>
+
+        <div class="footer">
+            <p>&copy; 2025 Financial Analytics Suite | All Rights Reserved</p>
+        </div>
+    </div>
+
+    <script>
+        // Close modal function
+        function closeModal() {
+            const modal = document.getElementById('alphaniftyModal');
+            modal.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        // Add fadeOut animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Auto-show modal on page load
+        window.addEventListener('load', function() {
+            const modal = document.getElementById('alphaniftyModal');
+            // Check if user has seen the modal today
+            const modalShown = sessionStorage.getItem('alphaniftyModalShown');
+            if (!modalShown) {
+                setTimeout(() => {
+                    modal.style.display = 'flex';
+                    sessionStorage.setItem('alphaniftyModalShown', 'true');
+                }, 500);
+            } else {
+                modal.style.display = 'none';
+            }
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('alphaniftyModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

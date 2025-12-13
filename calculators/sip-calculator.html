@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SIP Calculator — vsfintech</title>
+
+<!-- libs -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+:root{--brand:#0056ff;--muted:#6b7280}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(#f7fbff,#eef4fb);padding:22px}
+.wrap{max-width:1100px;margin:0 auto}
+.header{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+.logo{width:56px;height:56px;border-radius:10px;overflow:hidden}
+.title h2{margin:0;color:var(--brand)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.card{background:#fff;padding:16px;border-radius:12px;box-shadow:0 8px 30px rgba(12,20,40,0.06)}
+label{display:block;font-weight:700;margin-top:8px}
+input,select{width:100%;padding:10px;border-radius:8px;border:1px solid #e6eefb;background:#fbfcff;margin-top:6px}
+.action-row{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}
+.btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:700}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-ghost{background:#f1f7ff;border:1px solid rgba(0,86,255,0.06);color:var(--brand)}
+.result{background:#f5fbff;padding:12px;border-radius:8px;border-left:4px solid var(--brand);margin-top:12px}
+.chart-card{height:460px;display:flex;flex-direction:column;justify-content:space-between}
+canvas{width:100%!important;height:320px!important}
+.small{color:var(--muted);font-size:13px;margin-top:8px}
+.table-wrap{margin-top:12px;overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px;border-bottom:1px solid #eef2fb;text-align:right;font-size:13px}
+th{background:#fbfdff;text-align:left}
+.tooltip {position:relative;display:inline-block;cursor:help;margin-left:6px}
+.tooltip .tt {visibility:hidden;width:220px;background:#0b1220;color:#fff;text-align:left;border-radius:6px;padding:8px;position:absolute;z-index:10;bottom:125%;left:0;opacity:0;transition:opacity .18s}
+.tooltip:hover .tt{visibility:visible;opacity:1}
+@media(max-width:880px){ .grid{grid-template-columns:1fr} .chart-card{height:auto} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo"><img src="vsfintech.jpg" alt="vsfintech" style="width:100%;height:100%;object-fit:contain"></div>
+    <div class="title"><h2>SIP Calculator</h2><div class="linear-gradient">vsfintech • Yearly growth & export</div></div>
+  </div>
+
+  <!-- capture target -->
+  <div id="exportArea" class="grid">
+    <!-- left: calculator -->
+    <div class="card">
+      <label>SIP Amount (₹)
+        <span class="tooltip">ℹ<span class="tt">Amount contributed every chosen period (monthly/quarterly/annually).</span></span>
+      </label>
+      <input id="sipAmount" type="number" value="10000">
+
+      <label>Contribution Frequency
+        <span class="tooltip">ℹ<span class="tt">How many contributions per year (12=monthly,4=quarterly).</span></span>
+      </label>
+      <select id="sipFrequency"><option value="12">Monthly</option><option value="4">Quarterly</option><option value="2">Half-Yearly</option><option value="1">Yearly</option></select>
+
+      <label>Expected Annual Return (%)</label>
+      <input id="sipRate" type="number" value="12">
+
+      <label>Investment Period (Years)</label>
+      <input id="sipYears" type="number" value="10">
+
+      <label>Step-Up Type
+        <span class="tooltip">ℹ<span class="tt">Choose to increase SIP yearly by fixed amount or percent.</span></span>
+      </label>
+      <select id="stepUpType" onchange="toggleStepUp()"><option value="none">No Step-Up</option><option value="amount">Amount (₹)</option><option value="percent">Percentage (%)</option></select>
+
+      <div id="stepUpAmountDiv" style="display:none">
+        <label>Annual Step-Up Amount (₹)</label><input id="stepUpAmount" type="number" value="1000">
+      </div>
+      <div id="stepUpPercentDiv" style="display:none">
+        <label>Annual Step-Up Percentage (%)</label><input id="stepUpPercent" type="number" value="10" step="0.1">
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-ghost" onclick="resetSIP()">Reset</button>
+        <button class="btn btn-primary" onclick="calculateSIP()">Calculate</button>
+      </div>
+
+      <div class="result" id="results">
+        <div><b>Corpus:</b> <span id="corpus">—</span></div>
+        <div><b>Total Invested:</b> <span id="invested">—</span></div>
+        <div><b>Total Returns:</b> <span id="returns">—</span></div>
+      </div>
+
+      <div class="table-wrap" id="tableWrap"></div>
+
+      <div class="small" style="margin-top:10px">Generated by <strong>vsfintech</strong> • <span id="genDate"></span></div>
+    </div>
+
+    <!-- right: chart -->
+    <div class="card chart-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong>Yearly Growth</strong><div class="small">Invested vs Portfolio</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="exportPDF()">⬇ PDF</button>
+          <button class="btn btn-ghost" onclick="exportPNG()">🖼 PNG</button>
+        </div>
+      </div>
+
+      <canvas id="yearlyChart"></canvas>
+      <div class="small">Blue = Invested • Green = Portfolio Value</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* helpers */
+function qs(id){return document.getElementById(id)}
+function fmt(n){return "₹"+Math.round(n).toLocaleString()}
+function today(){return new Date().toLocaleString()}
+
+/* UI init */
+qs('genDate').innerText = today()
+function toggleStepUp(){
+  const t=qs('stepUpType').value
+  qs('stepUpAmountDiv').style.display = t==='amount' ? 'block':'none'
+  qs('stepUpPercentDiv').style.display = t==='percent' ? 'block':'none'
+}
+
+/* reset */
+let chart=null
+function resetSIP(){
+  qs('sipAmount').value=10000; qs('sipFrequency').value=12; qs('sipRate').value=12; qs('sipYears').value=10
+  qs('stepUpType').value='none'; toggleStepUp(); qs('corpus').innerText='—'; qs('invested').innerText='—'; qs('returns').innerText='—'; qs('tableWrap').innerHTML=''
+  if(chart){chart.destroy(); chart=null}
+}
+
+/* calc */
+function calculateSIP(){
+  const sip=+qs('sipAmount').value; const freq=+qs('sipFrequency').value; const rate=+qs('sipRate').value/100; const years=+qs('sipYears').value
+  const stepType=qs('stepUpType').value; const stepAmt=+qs('stepUpAmount').value||0; const stepPct=+qs('stepUpPercent').value||0
+  const ratePerPeriod = rate/freq; const total = years*freq
+  let currentSIP=sip, invested=0, maturity=0, investY=0, y=1
+  const labels=[], investedArr=[], valueArr=[], table=[]
+  for(let i=1;i<=total;i++){
+    maturity=(maturity+currentSIP)*(1+ratePerPeriod)
+    invested+=currentSIP; investY+=currentSIP
+    if(i%freq===0){
+      labels.push('Year '+y); investedArr.push(Math.round(investY)); valueArr.push(Math.round(maturity))
+      table.push({year:y, invested:Math.round(investedArr?investedArr[investedArr.length-1]:investY), value:Math.round(maturity), returns:Math.round(maturity - (invested))}
+      )
+      y++; investY=0
+      if(stepType==='amount') currentSIP += stepAmt
+      if(stepType==='percent') currentSIP += currentSIP*(stepPct/100)
+    }
+  }
+  qs('corpus').innerText = fmt(maturity)
+  qs('invested').innerText = fmt(invested)
+  qs('returns').innerText = fmt(maturity - invested)
+  renderChart(labels, investedArr, valueArr)
+  buildTable(table)
+}
+
+/* chart with animation */
+function renderChart(labels, investedData, valueData){
+  const ctx = qs('yearlyChart').getContext('2d')
+  if(chart) chart.destroy()
+  chart = new Chart(ctx,{
+    type:'bar',
+    data:{ labels, datasets:[{label:'Invested',data:investedData,backgroundColor:'#4A90E2'},{label:'Portfolio',data:valueData,backgroundColor:'#5cd65c'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},animation:{duration:800}}
+  })
+}
+
+/* table builder */
+function buildTable(rows){
+  let html='<table><thead><tr><th>Year</th><th style="text-align:right">Invested</th><th style="text-align:right">Portfolio Value</th><th style="text-align:right">Returns</th></tr></thead><tbody>'
+  rows.forEach(r=> html += `<tr><td style="text-align:left">Year ${r.year}</td><td>${fmt(r.invested)}</td><td>${fmt(r.value)}</td><td>${fmt(r.value - r.invested)}</td></tr>`)
+  html += '</tbody></table>'
+  qs('tableWrap').innerHTML = html
+}
+
+/* export (capture exportArea which includes logo/title inside page header) */
+async function exportPDF(){
+  const { jsPDF } = window.jspdf; const el = qs('exportArea')
+  const canvas = await html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#ffffff'})
+  const img = canvas.toDataURL('image/png'); const pdf = new jsPDF('p','pt','a4')
+  const w = pdf.internal.pageSize.getWidth(), h = (canvas.height * w)/canvas.width
+  pdf.addImage(img,'PNG',0,0,w,h); // if too tall it will be scaled
+  // add footer
+  pdf.setFontSize(10); pdf.text('Generated by vsfintech • '+today(), 40, (h+20)>pdf.internal.pageSize.getHeight()?pdf.internal.pageSize.getHeight()-30:h+20)
+  pdf.save('sip-report.pdf')
+}
+
+async function exportPNG(){
+  const el=qs('exportArea'); const canvas = await html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#ffffff'})
+  const img = canvas.toDataURL('image/png'); const link=document.createElement('a'); link.href=img; link.download='sip-report.png'; link.click()
+}
+
+/* init */
+resetSIP()
+</script>
+</body>
+</html>

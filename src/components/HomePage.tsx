@@ -5,12 +5,14 @@ import { TrendingUp, Shield, Target, Sparkles, ArrowRight, CheckCircle } from 'l
 interface HomePageProps {
   navigateTo: (page: any) => void;
   user: User | null;
+  onShowCalculator?: () => void;
+  onShowHelp?: () => void;
 }
 
-export function HomePage({ navigateTo, user }: HomePageProps) {
+export function HomePage({ navigateTo, user, onShowCalculator, onShowHelp }: HomePageProps) {
   return (
     <div className="min-h-screen">
-      <Header navigateTo={navigateTo} user={user} />
+      <Header navigateTo={navigateTo} user={user} onShowCalculator={onShowCalculator} onShowHelp={onShowHelp} />
       
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-[#3BAF4A] via-[#2E89C4] to-[#E8C23A] text-white py-20 px-4 overflow-hidden">
